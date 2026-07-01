@@ -79,11 +79,10 @@ Restore with `bw get notes "Muthal web .env.local" > web/.env.local`.
 
 ### Firebase
 
-Project: **`muthal-app`** (placeholder until created — update `shared/firebase/.firebaserc`,
-this file, and per-platform configs once the real project id is assigned).
-Console: https://console.firebase.google.com · Auth: Google · Firestore rules:
-`shared/firebase/firestore.rules` (source-controlled). Each Hora app has its **own**
-Firebase project — never shared with Pathivu/Varisankya.
+Project: **`hora-muthal`** (project number `310482235422`).
+Console: https://console.firebase.google.com/project/hora-muthal · Auth: Google (enabled) ·
+Firestore rules: `shared/firebase/firestore.rules` (source-controlled, deployed). Each Hora
+app has its **own** Firebase project — never shared with Pathivu/Varisankya.
 
 ### Accounts
 
@@ -93,7 +92,7 @@ Firebase project — never shared with Pathivu/Varisankya.
 | Google Play Console | `aarshps@gmail.com` | New app → 12-testers × 14-day gate before production. |
 | Apple Developer | `aarshps@gmail.com` | App record + signing created during iOS release. |
 | Firebase / Google | `aarshps@gmail.com` | Controls Firebase + Play. |
-| Web hosting | Firebase Hosting (project `muthal-app`) | |
+| Web hosting | Firebase Hosting → https://hora-muthal.web.app (project `hora-muthal`) | |
 
 ---
 
@@ -126,13 +125,15 @@ final signing key).
 
 ---
 
-## Open TODOs (greenfield — close as the release proceeds)
+## Status / Open TODOs
 
-1. Create the Firebase project and replace the `muthal-app` placeholder everywhere.
-2. Generate the upload keystore (`keytool`) and create the `Muthal` Bitwarden item with all Android fields.
-3. Create `Muthal web .env.local` Bitwarden secure note once the web Firebase config exists.
-4. Create `Muthal iOS signing` Bitwarden item + GitHub Secrets after Apple enrollment.
-5. Independent offline backup of the Android upload keystore (encrypted USB).
-6. Bitwarden Emergency Access designee + 2FA recovery codes stored offline.
-7. Enable Firestore scheduled exports to Cloud Storage (guards against accidental project deletion).
-8. Monthly encrypted `bw export` to offline storage.
+- [x] Firebase project `hora-muthal` created; `.firebaserc` + configs point at it.
+- [x] Upload keystore generated (`keytool`) and the `Muthal` Bitwarden item created with all
+      Android fields + `GoogleService-Info.plist [base64]` + the web `.env.local` (as a field).
+- [ ] Create `Muthal iOS signing` Bitwarden item + the iOS GitHub Secrets **after Apple enrolment**.
+- [ ] Add the Play Console **publisher service-account key** to the `Muthal` item as
+      `play_console_key.json` (base64) once created (then `retrieve_secrets.sh` restores it).
+- [ ] Independent offline backup of the Android upload keystore (encrypted USB).
+- [ ] Bitwarden Emergency Access designee + 2FA recovery codes stored offline.
+- [ ] Enable Firestore scheduled exports to Cloud Storage (guards against accidental project deletion).
+- [ ] Monthly encrypted `bw export` to offline storage.
