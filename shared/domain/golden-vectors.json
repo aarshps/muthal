@@ -1,0 +1,83 @@
+{
+  "_comment": "Language-neutral parity vectors for Muthal's core domain logic. Every platform MUST satisfy these: web/lib (currency.ts, summary.ts, categories.ts), android app/.../util (CurrencyHelper.kt, SummaryHelper.kt, Categories.kt), ios Muthal/Models (Currency.swift, Summary.swift, Categories.swift). Instants are ISO-8601 UTC; all month math runs in UTC. See SPEC.md. The web suite consumes this file in web/lib/__tests__/golden.test.ts; Android (testDebugUnitTest) and iOS (XCTest) load the same JSON to lock parity.",
+  "version": 1,
+  "currency": {
+    "format": [
+      { "amount": 649, "code": "INR", "expected": "₹ 649" },
+      { "amount": 9.99, "code": "USD", "expected": "$ 9.99" },
+      { "amount": 1000, "code": "INR", "expected": "₹ 1000" },
+      { "amount": 0, "code": "INR", "expected": "₹ 0" },
+      { "amount": 12.5, "code": "EUR", "expected": "€ 12.50" },
+      { "amount": -500, "code": "INR", "expected": "₹ -500" },
+      { "amount": 5, "code": "ZZZ", "expected": "$ 5" },
+      { "amount": 50, "code": "UNT", "expected": "# 50" }
+    ],
+    "compact": [
+      { "amount": 0, "expected": "0" },
+      { "amount": 999, "expected": "999" },
+      { "amount": 1000, "expected": "1k" },
+      { "amount": 1500, "expected": "1.5k" },
+      { "amount": 1234, "expected": "1.2k" },
+      { "amount": 100000, "expected": "1l" },
+      { "amount": 250000, "expected": "2.5l" },
+      { "amount": 1000000, "expected": "1m" },
+      { "amount": 3000000, "expected": "3m" },
+      { "amount": -1500, "expected": "-1.5k" }
+    ]
+  },
+  "categories": [
+    { "type": "income", "expected": ["Donation", "Offering", "Membership", "Grant", "Other"] },
+    { "type": "expense", "expected": ["Salary", "Utilities", "Maintenance", "Supplies", "Event", "Other"] },
+    { "type": "bogus", "expected": [] }
+  ],
+  "summary": [
+    {
+      "_name": "mixed across months and years (UTC bucketing)",
+      "now": "2026-06-15T12:00:00Z",
+      "entries": [
+        { "amount": 1000, "type": "income", "date": "2026-06-01T00:00:00Z" },
+        { "amount": 250, "type": "expense", "date": "2026-06-05T00:00:00Z" },
+        { "amount": 500, "type": "income", "date": "2026-05-20T00:00:00Z" },
+        { "amount": 100, "type": "expense", "date": "2026-06-30T23:00:00Z" },
+        { "amount": 700, "type": "income", "date": "2025-06-15T00:00:00Z" }
+      ],
+      "expected": {
+        "totalIncome": 2200,
+        "totalExpense": 350,
+        "balance": 1850,
+        "monthIncome": 1000,
+        "monthExpense": 350,
+        "monthBalance": 650
+      }
+    },
+    {
+      "_name": "empty ledger",
+      "now": "2026-06-15T12:00:00Z",
+      "entries": [],
+      "expected": {
+        "totalIncome": 0,
+        "totalExpense": 0,
+        "balance": 0,
+        "monthIncome": 0,
+        "monthExpense": 0,
+        "monthBalance": 0
+      }
+    },
+    {
+      "_name": "expense exceeds income this month (negative balance)",
+      "now": "2026-02-10T00:00:00Z",
+      "entries": [
+        { "amount": 300, "type": "income", "date": "2026-02-01T00:00:00Z" },
+        { "amount": 800, "type": "expense", "date": "2026-02-09T00:00:00Z" }
+      ],
+      "expected": {
+        "totalIncome": 300,
+        "totalExpense": 800,
+        "balance": -500,
+        "monthIncome": 300,
+        "monthExpense": 800,
+        "monthBalance": -500
+      }
+    }
+  ]
+}

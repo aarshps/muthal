@@ -1,0 +1,34 @@
+# ──────────────────────────────────────────────────────────────────────────
+# Root safety-net ignores for the Muthal monorepo.
+# Each app subdirectory (android/, ios/, web/) keeps its own .gitignore for
+# build artifacts; the rules here are an extra guard so NO secret can ever be
+# committed from anywhere in the tree, regardless of which directory it lands in.
+# ──────────────────────────────────────────────────────────────────────────
+
+# ── Credentials / signing material — NEVER commit ──
+**/google-services.json
+**/GoogleService-Info.plist
+**/serviceAccount*.json
+**/play_console_key.json
+**/*.keystore
+**/*.jks
+**/*-upload-key
+**/*.p8
+**/*.p12
+**/*.pem
+**/*.cer
+**/*.csr
+**/*.mobileprovision
+
+# ── Environment files (templates like .env.example stay tracked) ──
+**/.env
+**/.env.local
+**/.env.*.local
+
+# ── OS / editor / stray artifacts ──
+.DS_Store
+Thumbs.db
+**/nul
+
+# ── Agent tool scratch dirs (Playwright MCP debug logs / page dumps) ──
+.playwright-mcp/

@@ -1,0 +1,29 @@
+rules_version = '2';
+
+// Firestore security rules for Muthal (income/expense ledger for institutions).
+//
+// Every signed-in user has full read/write access to everything under their own
+// /users/{userId} subtree. Data is strictly per-user: nothing is readable or
+// writable across accounts.
+//
+// Layout:
+//   /users/{userId}/institutions/{instId}                    institution doc
+//   /users/{userId}/institutions/{instId}/entries/{entryId}  entry (authoritative)
+//   /users/{userId}/entries/{entryId}                        flat mirror (collection-group read)
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null
+                        && request.auth.uid == userId;
+    }
+
+    // The "All entries" view reads the flat mirror across every institution via a
+    // Firestore collection-group query. The {document=**} rule above does NOT cover
+    // collection-group reads, so authorise them explicitly here. Writes still go
+    // through the per-user path above, not this group rule.
+    match /{path=**}/entries/{entryId} {
+      allow read: if request.auth != null
+                && resource.data.userId == request.auth.uid;
+    }
+  }
+}

@@ -1,0 +1,26 @@
+@import "tailwindcss";
+@import "./theme.css";
+@import "./web_shared.css";
+
+/* ── Base ──────────────────────────────────────────────────────────────────── */
+html, body {
+  background: var(--bg);
+  color: var(--on-surface);
+  font-family: var(--font-rounded, ui-rounded), "SF Pro Rounded", system-ui,
+    -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+:root[data-font="system"] body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Native controls (date picker, calendar indicator, scrollbars) follow the theme;
+   otherwise the date-picker icon renders black and is invisible in dark mode. */
+:root,
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] { color-scheme: dark; }
+}

@@ -1,0 +1,30 @@
+# Shell scripts must stay LF even on Windows checkouts with core.autocrlf=true,
+# otherwise bash fails on the \r (hora-core guard — see docs/conventions.md).
+*.sh text eol=lf
+
+# Normalize line endings for common text types.
+*.kt   text
+*.kts  text
+*.swift text
+*.ts   text
+*.tsx  text
+*.js   text
+*.mjs  text
+*.json text
+*.md   text
+*.xml  text
+*.yml  text
+*.yaml text
+*.gradle text
+*.properties text
+
+# Treat known binaries as binary.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.webp binary
+*.ttf  binary
+*.otf  binary
+*.ico  binary
+*.keystore binary
+*.jks  binary
