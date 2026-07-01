@@ -9,7 +9,7 @@
  *    let everything else (Firebase, Google) pass straight through.
  */
 const CACHE = "muthal-v1";
-const SHELL = ["/", "/manifest.json", "/icons/icon-192.png", "/icons/icon-512.png"];
+const SHELL = ["/", "/manifest.json", "/icon-192.png", "/icon-512.png"];
 
 const OFFLINE_HTML = `<!doctype html><html lang="en"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -65,7 +65,7 @@ self.addEventListener("fetch", (event) => {
 
   if (
     url.pathname.startsWith("/_next/static/") ||
-    url.pathname.startsWith("/icons/")
+    url.pathname.startsWith("/icon")
   ) {
     event.respondWith(
       caches.match(request).then(

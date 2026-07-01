@@ -150,7 +150,7 @@ export function SettingsView({
         onClose={() => setAboutOpen(false)}
         appName={APP_NAME}
         description={APP_TAGLINE}
-        iconSrc="/icons/icon-512.png"
+        iconSrc="/icon-512.png"
         links={[{ label: "Privacy policy", href: PRIVACY_URL }]}
       />
 

@@ -59,7 +59,7 @@ export function App() {
       <SignIn
         appName={APP_NAME}
         tagline={APP_TAGLINE}
-        iconSrc="/icons/icon-512.png"
+        iconSrc="/icon-512.png"
         onSignIn={auth.signInWithGoogle}
         externalError={
           !firebaseReady

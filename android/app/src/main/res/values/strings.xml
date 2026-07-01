@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Muthal</string>
+    <string name="tagline">Income &amp; expense tracking for institutions</string>
+    <string name="continue_with_google">Continue with Google</string>
+    <string name="add_entry">Add entry</string>
+    <string name="new_institution">New institution</string>
+</resources>
