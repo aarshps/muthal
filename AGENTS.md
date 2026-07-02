@@ -78,7 +78,7 @@ sibling apps).
 | --- | --- | --- |
 | Android | **Windows 11** | SDK `C:\Users\Aarsh\AppData\Local\Android\Sdk`; JDK 17 (Temurin) |
 | iOS | macOS / GitHub Actions `macos-latest` | No local Mac; CI (`ios-build.yml`) is the only build path here |
-| Web | Windows 11 / Firebase Hosting | `cd web && npm run dev` locally; `firebase deploy --only hosting` to ship |
+| Web | Windows 11 / Vercel | cd web && npm run dev locally; vercel deploy for staging |
 
 ## Versioning
 

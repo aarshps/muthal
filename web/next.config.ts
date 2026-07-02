@@ -1,14 +1,24 @@
 import type { NextConfig } from "next";
 
-// Muthal web ships as a fully client-rendered PWA on Firebase Hosting, so we
-// emit a static export (no Node server / Cloud Functions needed). Auth uses the
-// project's own authDomain (`*.firebaseapp.com`), which natively serves the
-// Firebase auth handler — no reverse proxy required.
+const FIREBASE_AUTH_HANDLER = "https://hora-muthal.firebaseapp.com";
+
 const nextConfig: NextConfig = {
-  output: "export",
-  images: { unoptimized: true },
-  // Firebase Hosting serves clean URLs; trailing slashes keep export paths tidy.
-  trailingSlash: true,
+  // Reverse-proxy the Firebase Auth helper so it is served same-origin. This is
+  // the Firebase-recommended fix for signInWithRedirect/popup breaking under
+  // browser third-party-storage partitioning (mobile Chrome, iOS Safari). Paired
+  // with authDomain = window.location.hostname in lib/firebase.ts.
+  async rewrites() {
+    return [
+      {
+        source: "/__/auth/:path*",
+        destination: `${FIREBASE_AUTH_HANDLER}/__/auth/:path*`,
+      },
+      {
+        source: "/__/firebase/:path*",
+        destination: `${FIREBASE_AUTH_HANDLER}/__/firebase/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

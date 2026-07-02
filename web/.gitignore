@@ -34,3 +34,6 @@ next-env.d.ts
 # Playwright MCP artifacts
 .playwright-mcp
 .firebase/
+
+.vercel
+.env*
