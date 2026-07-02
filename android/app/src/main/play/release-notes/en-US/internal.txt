@@ -1,1 +1,1 @@
-Beta 3: the app now uses the Hora family brand font (Google Sans Flex) across every screen, and Google Sign-In errors are reported accurately instead of always showing "cancelled". Sign-in from Play-installed builds is fixed (signing-certificate registration).
+Beta 4: Material You dynamic colours — the app now picks up your wallpaper palette on Android 12+. New app icon with the family-standard letter sizing (base letters aligned across all Hora apps).

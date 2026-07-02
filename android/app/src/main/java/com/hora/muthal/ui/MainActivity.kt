@@ -5,8 +5,6 @@ import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.credentials.CredentialManager
@@ -23,6 +21,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.ListenerRegistration
+import com.hora.muthal.BaseActivity
 import com.hora.muthal.R
 import com.hora.muthal.data.FirestoreRepo
 import com.hora.muthal.databinding.ActivityMainBinding
@@ -35,7 +34,7 @@ import com.hora.muthal.util.CurrencyHelper
 import com.hora.muthal.util.SummaryHelper
 import kotlinx.coroutines.launch
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : BaseActivity() {
 
     private lateinit var b: ActivityMainBinding
     private val auth by lazy { FirebaseAuth.getInstance() }
@@ -52,8 +51,9 @@ class MainActivity : AppCompatActivity() {
     private val institutionTypes = listOf("Temple", "Church", "Library", "Other")
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // BaseActivity applies edge-to-edge, the brand-font theme, and re-applies
+        // Dynamic Colors per-activity (family standard).
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
         ViewCompat.setOnApplyWindowInsetsListener(b.root) { v, insets ->
