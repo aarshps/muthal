@@ -1,10 +1,14 @@
 package com.hora.muthal.ui
 
+import android.content.Intent
+import android.graphics.BitmapFactory
 import android.os.Bundle
+import android.view.HapticFeedbackConstants
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Toast
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.credentials.CredentialManager
@@ -22,8 +26,10 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.ListenerRegistration
 import com.hora.muthal.BaseActivity
+import com.hora.muthal.PreferenceHelper
 import com.hora.muthal.R
 import com.hora.muthal.data.FirestoreRepo
+import com.hora.muthal.util.BiometricAuthManager
 import com.hora.muthal.databinding.ActivityMainBinding
 import com.hora.muthal.databinding.SheetAddEntryBinding
 import com.hora.muthal.databinding.SheetAddInstitutionBinding
@@ -32,7 +38,10 @@ import com.hora.muthal.model.Institution
 import com.hora.muthal.util.Categories
 import com.hora.muthal.util.CurrencyHelper
 import com.hora.muthal.util.SummaryHelper
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.net.URL
 
 class MainActivity : BaseActivity() {
 
@@ -50,7 +59,16 @@ class MainActivity : BaseActivity() {
 
     private val institutionTypes = listOf("Temple", "Church", "Library", "Other")
 
+    /** Splash keep-condition: hold until first frame is decided (auth + gate + data). */
+    private var uiReady = false
+    private var firstDataArrived = false
+    private var biometricPassed = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Family splash standard (splash-and-home-standards): install BEFORE the
+        // BaseActivity theme switch, hold until the first real frame is ready.
+        val splash = installSplashScreen()
+        splash.setKeepOnScreenCondition { !uiReady }
         // BaseActivity applies edge-to-edge, the brand-font theme, and re-applies
         // Dynamic Colors per-activity (family standard).
         super.onCreate(savedInstanceState)
@@ -65,36 +83,96 @@ class MainActivity : BaseActivity() {
         b.rvEntries.adapter = adapter
 
         b.btnGoogle.setOnClickListener { signIn() }
-        b.btnSignOut.setOnClickListener { signOut() }
         b.btnAddInstitution.setOnClickListener { openInstitutionSheet() }
         b.fab.setOnClickListener { if (selectedInst != null) openEntrySheet(null) else openInstitutionSheet() }
+        b.profileImage.setOnClickListener {
+            PreferenceHelper.performClickHaptic(it)
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
+        b.swipeRefresh.setOnRefreshListener {
+            // Firestore listeners are live; the gesture is just an acknowledgement.
+            PreferenceHelper.performHaptics(b.swipeRefresh, HapticFeedbackConstants.CLOCK_TICK)
+            b.swipeRefresh.postDelayed({ b.swipeRefresh.isRefreshing = false }, 400)
+        }
 
-        render()
+        // App-Lock gate (family standard): biometric before any content when enabled.
+        if (auth.currentUser != null && PreferenceHelper.isBiometricEnabled(this)) {
+            BiometricAuthManager.authenticate(
+                this,
+                onSuccess = { biometricPassed = true; render() },
+                onError = { finish() },
+            )
+        } else {
+            biometricPassed = true
+            render()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Coming back from Settings after a sign-out / account deletion.
+        if (biometricPassed && auth.currentUser == null && repo != null) {
+            instReg?.remove(); entryReg?.remove()
+            repo = null
+            institutions = emptyList(); selectedInst = null; allEntries = emptyList()
+            adapter.submit(emptyList())
+            render()
+        }
     }
 
     private fun render() {
+        if (!biometricPassed) return
         if (auth.currentUser != null) onSignedIn() else onSignedOut()
     }
 
     private fun onSignedOut() {
+        uiReady = true
         b.signInGroup.visibility = View.VISIBLE
-        b.mainGroup.visibility = View.GONE
+        b.appBar.visibility = View.GONE
+        b.swipeRefresh.visibility = View.GONE
         b.fab.visibility = View.GONE
     }
 
     private fun onSignedIn() {
         b.signInGroup.visibility = View.GONE
-        b.mainGroup.visibility = View.VISIBLE
+        b.appBar.visibility = View.VISIBLE
+        b.swipeRefresh.visibility = View.VISIBLE
         b.fab.visibility = View.VISIBLE
+        loadAvatar()
         val uid = auth.currentUser?.uid ?: return
+        if (repo != null) return   // listeners already attached
         repo = FirestoreRepo(uid)
         instReg = repo!!.observeInstitutions { list ->
             institutions = list
+            onFirstData()
             setupInstitutionSpinner()
         }
         entryReg = repo!!.observeEntries { list ->
             allEntries = list
+            onFirstData()
             refreshEntries()
+        }
+    }
+
+    /** First snapshot: swap the skeleton for real content, release the splash. */
+    private fun onFirstData() {
+        if (!firstDataArrived) {
+            firstDataArrived = true
+            b.loadingSkeleton.root.visibility = View.GONE
+            b.contentWrapper.visibility = View.VISIBLE
+        }
+        uiReady = true
+    }
+
+    /** Google account photo → toolbar avatar (lightweight loader, family standard). */
+    private fun loadAvatar() {
+        auth.currentUser?.photoUrl?.let { url ->
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val bmp = BitmapFactory.decodeStream(URL(url.toString()).openStream())
+                    withContext(Dispatchers.Main) { b.profileImage.setImageBitmap(bmp) }
+                } catch (_: Exception) { }
+            }
         }
     }
 
@@ -127,7 +205,7 @@ class MainActivity : BaseActivity() {
         val inst = selectedInst
         val filtered = if (inst != null) allEntries.filter { it.institutionId == inst.id } else emptyList()
         adapter.submit(filtered)
-        b.tvEmpty.visibility = if (inst != null && filtered.isEmpty()) View.VISIBLE else View.GONE
+        b.emptyStateContainer.visibility = if (inst != null && filtered.isEmpty()) View.VISIBLE else View.GONE
         val cur = inst?.currency ?: "INR"
         val items = filtered.map { SummaryHelper.Item(it.amount, it.type, it.date) }
         val s = SummaryHelper.summarize(items, System.currentTimeMillis())
@@ -166,14 +244,6 @@ class MainActivity : BaseActivity() {
                 toast("Sign-in failed: ${e.message ?: e.type}")
             }
         }
-    }
-
-    private fun signOut() {
-        instReg?.remove(); entryReg?.remove()
-        auth.signOut()
-        institutions = emptyList(); selectedInst = null; allEntries = emptyList()
-        adapter.submit(emptyList())
-        onSignedOut()
     }
 
     // ── Institution sheet ──

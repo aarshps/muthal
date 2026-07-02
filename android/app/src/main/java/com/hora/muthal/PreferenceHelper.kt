@@ -16,6 +16,27 @@ object PreferenceHelper {
     private const val APP_PREFS = "AppPrefs"
     private const val KEY_HAPTICS_ENABLED = "haptics_enabled"
     private const val KEY_USE_GOOGLE_FONT = "use_google_font"
+    private const val KEY_THEME_MODE = "theme_mode"
+    private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
+
+    /** AppCompatDelegate night-mode int (MODE_NIGHT_FOLLOW_SYSTEM default). */
+    fun getThemeMode(context: Context): Int =
+        context.getSharedPreferences(APP_PREFS, Context.MODE_PRIVATE)
+            .getInt(KEY_THEME_MODE, androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+
+    fun setThemeMode(context: Context, mode: Int) {
+        context.getSharedPreferences(APP_PREFS, Context.MODE_PRIVATE)
+            .edit().putInt(KEY_THEME_MODE, mode).apply()
+    }
+
+    fun isBiometricEnabled(context: Context): Boolean =
+        context.getSharedPreferences(APP_PREFS, Context.MODE_PRIVATE)
+            .getBoolean(KEY_BIOMETRIC_ENABLED, false)
+
+    fun setBiometricEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(APP_PREFS, Context.MODE_PRIVATE)
+            .edit().putBoolean(KEY_BIOMETRIC_ENABLED, enabled).apply()
+    }
 
     fun isHapticsEnabled(context: Context): Boolean =
         context.getSharedPreferences(APP_PREFS, Context.MODE_PRIVATE)

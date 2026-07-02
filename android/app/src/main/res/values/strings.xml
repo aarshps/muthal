@@ -5,4 +5,20 @@
     <string name="continue_with_google">Continue with Google</string>
     <string name="add_entry">Add entry</string>
     <string name="new_institution">New institution</string>
+    <string name="add">Add</string>
+    <string name="settings">Settings</string>
+    <string name="appearance">Appearance</string>
+    <string name="theme">Theme</string>
+    <string name="theme_subtitle">Follow the system, or force light/dark</string>
+    <string name="preferences">Preferences</string>
+    <string name="haptics">Haptic feedback</string>
+    <string name="haptics_subtitle">Vibration on taps and key actions</string>
+    <string name="app_lock">App lock</string>
+    <string name="app_lock_subtitle">Require biometric unlock on launch</string>
+    <string name="about">About</string>
+    <string name="version">Version</string>
+    <string name="sign_out">Sign out</string>
+    <string name="delete_account">Delete account</string>
+    <string name="no_entries">No entries yet</string>
+    <string name="no_entries_subtitle">Record your first income or expense for this institution.</string>
 </resources>

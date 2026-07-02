@@ -7,8 +7,8 @@ contract). Start with [`AGENTS.md`](AGENTS.md) for the cross-cutting mandates an
 
 ## Current version
 
-- **versionName:** `1.0-beta.4`  ·  **versionCode:** `4`  ·  **tag:** `v1.0-beta.4`
-- **Next free versionCode:** `5`
+- **versionName:** `1.0-beta.5`  ·  **versionCode:** `5`  ·  **tag:** `v1.0-beta.5`
+- **Next free versionCode:** `6`
 
 (Bump per `hora-core/docs/conventions.md` → "App versioning": `versionCode` +1 every build
 that reaches any Play track; `versionName` `MAJOR.MINOR-beta.N`. Keep this line current.)

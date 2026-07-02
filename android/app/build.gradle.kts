@@ -21,8 +21,8 @@ android {
         applicationId = "com.hora.muthal"
         minSdk = 35
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.0-beta.4"
+        versionCode = 5
+        versionName = "1.0-beta.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -95,6 +95,7 @@ dependencies {
     implementation(libs.googleid)
 
     implementation(libs.androidx.biometric)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     testImplementation(libs.junit)
     testImplementation(libs.org.json)

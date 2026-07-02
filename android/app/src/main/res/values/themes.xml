@@ -26,4 +26,10 @@
         <item name="textAppearanceLabelMedium">@style/TextAppearance.App.LabelMedium</item>
         <item name="textAppearanceLabelSmall">@style/TextAppearance.App.LabelSmall</item>
     </style>
+
+    <!-- Splash Screen Theme (family standard — splash-and-home-standards) -->
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_icon_centered</item>
+        <item name="postSplashScreenTheme">@style/Theme.Muthal</item>
+    </style>
 </resources>

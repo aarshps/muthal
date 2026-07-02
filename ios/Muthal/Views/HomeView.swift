@@ -7,6 +7,7 @@ struct HomeView: View {
     @State private var selectedId: String?
     @State private var showAddEntry = false
     @State private var showAddInstitution = false
+    @State private var showSettings = false
     @State private var editingEntry: Entry?
 
     private var selected: Institution? {
@@ -64,9 +65,17 @@ struct HomeView: View {
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button { showAddInstitution = true } label: { Image(systemName: "plus.circle") }
-                    Menu {
-                        Button("Sign out", role: .destructive) { store.stop(); auth.signOut() }
-                    } label: { Image(systemName: "ellipsis.circle") }
+                    // Family standard: profile/settings entry on the trailing edge;
+                    // sign-out lives inside Settings, never on the home toolbar.
+                    Button { showSettings = true } label: {
+                        AsyncImage(url: auth.user?.photoURL) { image in
+                            image.resizable()
+                        } placeholder: {
+                            Image(systemName: "person.crop.circle")
+                        }
+                        .frame(width: 28, height: 28)
+                        .clipShape(Circle())
+                    }
                 }
             }
             .overlay(alignment: .bottomTrailing) {
@@ -86,6 +95,7 @@ struct HomeView: View {
                 if let inst { EntrySheet(institution: inst, entry: e) }
             }
             .sheet(isPresented: $showAddInstitution) { InstitutionSheet() }
+            .sheet(isPresented: $showSettings) { SettingsView() }
         }
     }
 

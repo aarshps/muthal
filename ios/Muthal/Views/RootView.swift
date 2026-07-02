@@ -4,16 +4,39 @@ struct RootView: View {
     @EnvironmentObject var auth: AuthService
     @EnvironmentObject var store: FirestoreService
 
+    // App-Lock gate (family standard): biometric before any content when enabled.
+    @AppStorage("biometric_enabled") private var biometricEnabled = false
+    @State private var unlocked = false
+    @State private var unlocking = false
+
     var body: some View {
         Group {
             if !auth.initialized {
-                ProgressView()
+                // Boot frame while auth resolves (splash-and-home-standards).
+                bootFrame
             } else if auth.user == nil {
                 SignInView()
+            } else if biometricEnabled && !unlocked {
+                bootFrame
+                    .task {
+                        guard !unlocking else { return }
+                        unlocking = true
+                        unlocked = await BiometricAuth.authenticate()
+                        unlocking = false
+                    }
             } else {
                 HomeView()
                     .onAppear { if let uid = auth.user?.uid { store.start(uid: uid) } }
             }
+        }
+    }
+
+    private var bootFrame: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "indianrupeesign.circle.fill")
+                .resizable().frame(width: 72, height: 72)
+                .foregroundStyle(.tint)
+            Text("Muthal").font(.largeTitle.bold())
         }
     }
 }
