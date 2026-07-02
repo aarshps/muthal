@@ -21,8 +21,8 @@ android {
         applicationId = "com.hora.muthal"
         minSdk = 35
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.0-beta.5"
+        versionCode = 6
+        versionName = "1.0-beta.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

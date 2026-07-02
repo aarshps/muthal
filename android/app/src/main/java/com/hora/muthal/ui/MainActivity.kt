@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.view.HapticFeedbackConstants
 import android.view.View
+import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Toast
@@ -74,9 +75,20 @@ class MainActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
-        ViewCompat.setOnApplyWindowInsetsListener(b.root) { v, insets ->
+        // Edge-to-edge insets (family standard): the AppBarLayout's own
+        // fitsSystemWindows="true" already pads for the status bar — do NOT also pad
+        // the root here, or the status-bar inset is applied twice (an empty gap above
+        // the toolbar). Only handle the BOTTOM inset, for FAB/scroll clearance.
+        ViewCompat.setOnApplyWindowInsetsListener(b.root) { _, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            val density = resources.displayMetrics.density
+            b.rvEntries.setPadding(
+                b.rvEntries.paddingLeft, b.rvEntries.paddingTop,
+                b.rvEntries.paddingRight, bars.bottom + (96 * density).toInt(),
+            )
+            val fabParams = b.fab.layoutParams as ViewGroup.MarginLayoutParams
+            fabParams.bottomMargin = bars.bottom + (16 * density).toInt()
+            b.fab.layoutParams = fabParams
             insets
         }
         b.rvEntries.layoutManager = LinearLayoutManager(this)

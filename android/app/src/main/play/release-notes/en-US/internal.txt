@@ -1,1 +1,1 @@
-Beta 5: the full Hora family screen layouts — a proper splash screen, the standard home (app bar with logo and your profile photo, hero balance card, loading skeleton, pull-to-refresh), and a brand-new Settings screen (theme, haptics, app lock, about, sign out, delete account).
+Beta 6: fixed an empty gap that appeared above the home screen's top bar (a duplicated status-bar inset).
