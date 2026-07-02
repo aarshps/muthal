@@ -1,1 +1,1 @@
-First beta of Muthal - a minimal income & expense ledger for institutions (temples, churches, libraries). Sign in with Google, create multiple institutions, record income/expense entries, and see a running balance with a this-month summary. Cross-platform with the web app; your data syncs via your Google account.
+Beta 3: the app now uses the Hora family brand font (Google Sans Flex) across every screen, and Google Sign-In errors are reported accurately instead of always showing "cancelled". Sign-in from Play-installed builds is fixed (signing-certificate registration).

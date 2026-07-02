@@ -12,7 +12,9 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
@@ -155,8 +157,13 @@ class MainActivity : AppCompatActivity() {
                         else toast("Sign-in failed: ${t.exception?.message}")
                     }
                 }
-            } catch (e: GetCredentialException) {
+            } catch (e: GetCredentialCancellationException) {
                 toast("Sign-in cancelled")
+            } catch (e: NoCredentialException) {
+                toast("No Google account available on this device")
+            } catch (e: GetCredentialException) {
+                // Don't mask real failures (e.g. OAuth client / SHA mismatch) as a cancel.
+                toast("Sign-in failed: ${e.message ?: e.type}")
             }
         }
     }

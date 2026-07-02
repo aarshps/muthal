@@ -25,7 +25,18 @@ bw sync
 ITEM_ID=$(bw list items --search Muthal | jq -r '.[] | select(.name=="Muthal") | .id' | head -1)
 [ -z "$ITEM_ID" ] && { echo "Error: no vault item named exactly 'Muthal'." >&2; exit 1; }
 ITEM_JSON=$(bw get item "$ITEM_ID")
-field() { echo "$ITEM_JSON" | jq -r --arg n "$1" '.fields[] | select(.name==$n).value'; }
+# Fail LOUDLY if a field is missing/empty — a silent empty value here writes a
+# 0-byte secret file and produces baffling downstream errors (learned 2026-07-02
+# when play_console_key.json was absent from the vault).
+field() {
+    local v
+    v=$(echo "$ITEM_JSON" | jq -r --arg n "$1" '.fields[] | select(.name==$n).value')
+    if [ -z "$v" ] || [ "$v" = "null" ]; then
+        echo "Error: vault field '$1' is missing or empty on the Muthal item." >&2
+        exit 1
+    fi
+    echo "$v"
+}
 
 echo "Restoring google-services.json..."
 echo "$(field 'google-services.json [Part 1]')$(field 'google-services.json [Part 2]')" | base64 --decode > app/google-services.json
@@ -37,7 +48,7 @@ echo "Restoring upload keystore..."
 echo "$(field 'muthal-upload-key [Part 1]')$(field 'muthal-upload-key [Part 2]')" | base64 --decode > muthal-upload-key
 
 echo "Restoring Play Console service-account key..."
-field 'play_console_key.json' | base64 --decode > app/play_console_key.json
+echo "$(field 'play_console_key.json [Part 1]')$(field 'play_console_key.json [Part 2]')" | base64 --decode > app/play_console_key.json
 
 echo "Writing signing properties to local.properties..."
 if ! grep -q "RELEASE_STORE_PASSWORD" local.properties 2>/dev/null; then
