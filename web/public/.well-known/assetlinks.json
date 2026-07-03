@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.hora.muthal",
+      "sha256_cert_fingerprints": [
+        "D0:53:78:BE:B8:8B:8F:E9:02:70:1D:08:5C:A4:F8:B6:22:43:77:3A:EF:10:71:07:8E:2E:5B:8F:B9:A8:EE:4A",
+        "A7:2F:A6:2B:2C:A5:28:11:82:2B:22:4B:16:C5:B8:C0:2F:6F:DA:02:C2:47:B3:7C:FF:CE:D8:F9:5E:F4:96:26"
+      ]
+    }
+  }
+]
