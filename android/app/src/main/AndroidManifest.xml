@@ -44,11 +44,12 @@
             android:exported="false"
             android:theme="@style/Theme.Muthal" />
 
-        <!-- App Links target for the universal join link (SPEC §2). Verification
-             requires https://muthal-web.vercel.app/.well-known/assetlinks.json to list
-             this app's signing certificate SHA-256 fingerprints (Play App Signing +
-             upload key) — same follow-up as the Google Sign-in SHA-1 registration; until
-             that file is populated, Android falls back to opening the web join page
+        <!-- App Links target for the universal join link (SPEC §2). Verified via
+             https://muthal-web.vercel.app/.well-known/assetlinks.json, which lists both
+             the Play App Signing cert and the upload-key cert (GitHub release APKs are
+             signed with the latter, Play-installed apps present the former) — confirmed
+             live against Google's Digital Asset Links API. If verification ever regresses
+             (e.g. the file goes missing), Android falls back to opening the web join page
              instead of the app, which still works (SPEC's "universal fallback"). -->
         <activity
             android:name=".ui.JoinActivity"
