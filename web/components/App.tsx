@@ -15,12 +15,14 @@ import { InstitutionActionsSheet } from "./InstitutionActionsSheet";
 import { ManageMembersView } from "./ManageMembersView";
 import { CategoriesView } from "./CategoriesView";
 import { PeriodExportView } from "./PeriodExportView";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useMemberships } from "@/hooks/useMemberships";
 import { useInstitutionDetail } from "@/hooks/useInstitutionDetail";
 import {
   createInstitution,
   deleteEntry,
+  deleteInstitution,
   joinInstitution,
   joinLink,
   removeMember,
@@ -57,6 +59,8 @@ export function App({ initialJoinCode }: { initialJoinCode?: string }) {
   const [actionsOpen, setActionsOpen] = useState(false);
   const [entryDialogOpen, setEntryDialogOpen] = useState<Entry | "new" | null>(null);
   const [pendingJoinCode, setPendingJoinCode] = useState<string | undefined>(initialJoinCode);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (pendingJoinCode && auth.user) {
@@ -313,8 +317,30 @@ export function App({ initialJoinCode }: { initialJoinCode?: string }) {
             await removeMember(selected.institutionId, uid);
             analytics.institutionLeave();
           }}
+          onDelete={() => setConfirmDeleteOpen(true)}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title="Delete institution?"
+        message={`Permanently delete "${selected?.institutionName}"? This removes every entry, category, and member. This cannot be undone.`}
+        confirmLabel="Delete"
+        danger
+        busy={deleting}
+        onClose={() => setConfirmDeleteOpen(false)}
+        onConfirm={async () => {
+          if (!selected || !uid) return;
+          setDeleting(true);
+          try {
+            await deleteInstitution(uid, selected.institutionId);
+            analytics.institutionDelete();
+            setConfirmDeleteOpen(false);
+          } finally {
+            setDeleting(false);
+          }
+        }}
+      />
     </div>
   );
 }

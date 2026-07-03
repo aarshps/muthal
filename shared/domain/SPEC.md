@@ -83,10 +83,13 @@ institutions am I in, and with what role" cheaply, without a collection-group qu
 ## 2. Institution creation, join codes, and sharing
 
 - **Creating** an institution: the creating user writes the `institutions/{instId}` doc
-  (`ownerId` = their own uid), a `members/{uid}` doc for themselves with `role: "owner"`,
-  a `users/{uid}/memberships/{instId}` index doc, and reserves a **join code** by writing
-  `institutionCodes/{code} → { institutionId }`. All four writes happen in one batch —
-  either all succeed or none do.
+  (`ownerId` = their own uid), then a `members/{uid}` doc for themselves with
+  `role: "owner"`, then a `users/{uid}/memberships/{instId}` index doc, then reserves a
+  **join code** by writing `institutionCodes/{code} → { institutionId, name }`, then
+  seeds the default categories. These are a **sequence of separately-awaited writes, not
+  one atomic batch** — Firestore rules can't see sibling writes within the same
+  batch/transaction, so the owner-role bootstrap (§ shared/firebase/firestore.rules) needs
+  the institution doc to already be committed before it can safely verify `ownerId`.
 - **Join code format:** 6 characters, uppercase, drawn from an unambiguous alphabet that
   excludes visually similar characters (no `0/O`, `1/I/L`) —
   `ABCDEFGHJKMNPQRSTUVWXYZ23456789`. Generated client-side; on the rare collision
@@ -102,6 +105,17 @@ institutions am I in, and with what role" cheaply, without a collection-group qu
   `members/{theirUid}` doc with `role: "member"` (never anything higher — see §3) and
   their own `users/{uid}/memberships/{instId}` index doc. A user can join the same
   institution only once (the member doc id is their uid, so re-joining is a no-op).
+- **Deleting an institution** (owner only — see §3) permanently removes the institution
+  and everything in it: every entry, every category, every member's `members/{uid}` doc
+  and their `users/{uid}/memberships/{instId}` index entry, the `institutionCodes/{code}`
+  reservation, and finally the institution doc itself. This is a sequence of
+  separately-awaited deletes, ordered so every step's rule check still has what it needs:
+  (1) the join code (needs the institution doc, checked before it's gone), (2) all
+  entries, (3) all categories (both need the deleter's own `owner` member doc to still
+  exist), (4) every *other* member's `members/{uid}` doc + memberships index entry, (5)
+  the owner's own memberships index entry, (6) the institution doc itself (still needs
+  the owner's member doc), (7) the owner's own `members/{uid}` doc, last. There is no
+  confirmation-then-undo — the client must confirm destructively before calling this.
 
 ## 3. Roles
 

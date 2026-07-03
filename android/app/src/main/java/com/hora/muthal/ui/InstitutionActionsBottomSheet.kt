@@ -9,15 +9,18 @@ import com.hora.muthal.databinding.BottomSheetInstitutionActionsBinding
 
 /** Role-gated action list for the currently open institution (SPEC §3): sharing is
  * available to every member, member management + categories are admin/owner-only,
- * period export is available to everyone, leaving is always available. */
+ * period export is available to everyone, leaving is always available, deleting is
+ * owner-only. */
 class InstitutionActionsBottomSheet(
     private val institutionName: String,
     private val isAdminOrOwner: Boolean,
+    private val isOwner: Boolean,
     private val onShare: () -> Unit,
     private val onMembers: () -> Unit,
     private val onCategories: () -> Unit,
     private val onExport: () -> Unit,
     private val onLeave: () -> Unit,
+    private val onDelete: () -> Unit,
 ) : BottomSheetDialogFragment() {
 
     private var _b: BottomSheetInstitutionActionsBinding? = null
@@ -30,12 +33,14 @@ class InstitutionActionsBottomSheet(
         b.tvActionsInstitutionName.text = institutionName
         b.rowMembers.visibility = if (isAdminOrOwner) View.VISIBLE else View.GONE
         b.rowCategories.visibility = if (isAdminOrOwner) View.VISIBLE else View.GONE
+        b.rowDelete.visibility = if (isOwner) View.VISIBLE else View.GONE
 
         b.rowShare.setOnClickListener { onShare(); dismiss() }
         b.rowMembers.setOnClickListener { onMembers(); dismiss() }
         b.rowCategories.setOnClickListener { onCategories(); dismiss() }
         b.rowExport.setOnClickListener { onExport(); dismiss() }
         b.rowLeave.setOnClickListener { onLeave(); dismiss() }
+        b.rowDelete.setOnClickListener { onDelete(); dismiss() }
         return b.root
     }
 

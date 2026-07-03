@@ -13,6 +13,7 @@ struct HomeView: View {
     @State private var showCategories = false
     @State private var showExport = false
     @State private var editingEntry: Entry?
+    @State private var confirmDeleteInstitution = false
 
     private var selected: Membership? {
         store.memberships.first { $0.institutionId == store.institution?.id } ?? store.memberships.first
@@ -98,6 +99,9 @@ struct HomeView: View {
                             }
                             Button { showExport = true } label: { Label("Period export", systemImage: "calendar") }
                             Button(role: .destructive) { leaveInstitution() } label: { Label("Leave institution", systemImage: "rectangle.portrait.and.arrow.right") }
+                            if selected.role == .owner {
+                                Button(role: .destructive) { confirmDeleteInstitution = true } label: { Label("Delete institution", systemImage: "trash") }
+                            }
                         } label: {
                             Image(systemName: "ellipsis.circle")
                         }
@@ -154,6 +158,13 @@ struct HomeView: View {
             .onChange(of: store.pendingJoinCode) { _, code in
                 if code != nil { showJoin = true }
             }
+            .confirmationDialog(
+                "Permanently delete \"\(selected?.institutionName ?? "")\"? This removes every entry, category, and member. This cannot be undone.",
+                isPresented: $confirmDeleteInstitution,
+                titleVisibility: .visible
+            ) {
+                Button("Delete forever", role: .destructive) { Task { await deleteInstitution() } }
+            }
         }
     }
 
@@ -200,5 +211,10 @@ struct HomeView: View {
     private func leaveInstitution() {
         guard let selected, let uid = auth.user?.uid else { return }
         Task { try? await store.removeMember(instId: selected.institutionId, memberUid: uid) }
+    }
+
+    private func deleteInstitution() async {
+        guard let selected else { return }
+        try? await store.deleteInstitution(instId: selected.institutionId)
     }
 }

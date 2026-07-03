@@ -210,6 +210,33 @@ final class FirestoreService: ObservableObject {
 
     func joinLink(_ code: String) -> String { "https://muthal-web.vercel.app/join/\(code)" }
 
+    /// Owner only (SPEC §3). Permanently removes the institution and everything in it.
+    /// A sequence of separately-awaited deletes, ordered so every step's rule check
+    /// still has what it needs — see SPEC §2 for the exact reasoning per step.
+    func deleteInstitution(instId: String) async throws {
+        guard let uid else { return }
+        let instDoc = try await institutionsCol().document(instId).getDocument()
+        let code = instDoc["code"] as? String
+
+        if let code, !code.isEmpty {
+            try await codesCol().document(code).delete()
+        }
+
+        for d in try await entriesCol(instId).getDocuments().documents { try await d.reference.delete() }
+        for d in try await categoriesCol(instId).getDocuments().documents { try await d.reference.delete() }
+
+        for m in try await membersCol(instId).getDocuments().documents {
+            if m.documentID == uid { continue }
+            try? await db.collection("users").document(m.documentID).collection("memberships")
+                .document(instId).delete()
+            try await m.reference.delete()
+        }
+
+        try await myMembershipsCol(uid).document(instId).delete()
+        try await institutionsCol().document(instId).delete()
+        try await membersCol(instId).document(uid).delete()
+    }
+
     // MARK: members
 
     /// Owner only (enforced server-side); also fans the role out to the member's own

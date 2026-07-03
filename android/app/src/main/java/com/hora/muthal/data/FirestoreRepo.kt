@@ -150,6 +150,30 @@ class FirestoreRepo(private val uid: String) {
 
     fun joinLink(code: String): String = "https://muthal-web.vercel.app/join/$code"
 
+    /** Owner only (SPEC §3). Permanently removes the institution and everything in it.
+     * A sequence of separately-awaited deletes, ordered so every step's rule check
+     * still has what it needs — see SPEC §2 for the exact reasoning per step. */
+    suspend fun deleteInstitution(instId: String) {
+        val inst = institution(instId).get().await()
+        val code = inst.getString("code")
+
+        if (!code.isNullOrEmpty()) codes().document(code).delete().await()
+
+        for (d in entries(instId).get().await().documents) d.reference.delete().await()
+        for (d in categories(instId).get().await().documents) d.reference.delete().await()
+
+        for (m in members(instId).get().await().documents) {
+            if (m.id == uid) continue
+            db.collection("users").document(m.id).collection("memberships").document(instId)
+                .delete().await()
+            m.reference.delete().await()
+        }
+
+        myMemberships().document(instId).delete().await()
+        institution(instId).delete().await()
+        members(instId).document(uid).delete().await()
+    }
+
     // ── Institution detail / members ──
 
     fun observeInstitution(instId: String, cb: (Institution?) -> Unit): ListenerRegistration =

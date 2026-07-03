@@ -291,11 +291,13 @@ class MainActivity : BaseActivity() {
         InstitutionActionsBottomSheet(
             institutionName = m.institutionName,
             isAdminOrOwner = m.isAdminOrOwner,
+            isOwner = m.isOwner,
             onShare = { shareInstitution() },
             onMembers = { openManageMembers() },
             onCategories = { openCategories() },
             onExport = { openPeriodExport() },
             onLeave = { confirmLeaveInstitution() },
+            onDelete = { confirmDeleteInstitution() },
         ).show(supportFragmentManager, "inst-actions")
     }
 
@@ -353,6 +355,24 @@ class MainActivity : BaseActivity() {
                 }
             },
         ).show(supportFragmentManager, "leave")
+    }
+
+    /** Owner only (SPEC §3). Permanently deletes the institution and everything in it —
+     * no undo, so this is the one confirmation in the app that spells out the stakes. */
+    private fun confirmDeleteInstitution() {
+        val m = selectedMembership ?: return
+        ConfirmationBottomSheet(
+            title = getString(R.string.delete_institution),
+            message = "Permanently delete \"${m.institutionName}\"? This removes every entry, category, and member. This cannot be undone.",
+            positiveButtonText = getString(R.string.delete_institution),
+            isDestructive = true,
+            onConfirm = {
+                lifecycleScope.launch {
+                    try { repo?.deleteInstitution(m.institutionId) }
+                    catch (e: Exception) { toast("Couldn't delete: ${e.message}") }
+                }
+            },
+        ).show(supportFragmentManager, "delete-institution")
     }
 
     // ── Join by code ──

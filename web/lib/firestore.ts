@@ -179,6 +179,33 @@ export function joinLink(code: string): string {
   return `https://muthal-web.vercel.app/join/${code}`;
 }
 
+/** Owner only (SPEC §3). Permanently removes the institution and everything in it. A
+ * sequence of separately-awaited deletes, ordered so every step's rule check still has
+ * what it needs — see SPEC §2 for the exact reasoning per step. */
+export async function deleteInstitution(uid: string, instId: string): Promise<void> {
+  const instSnap = await getDoc(institution(instId));
+  const code = instSnap.data()?.code as string | undefined;
+
+  if (code) await deleteDoc(doc(codes(), code));
+
+  const entrySnap = await getDocs(entries(instId));
+  for (const d of entrySnap.docs) await deleteDoc(d.ref);
+
+  const categorySnap = await getDocs(categories(instId));
+  for (const d of categorySnap.docs) await deleteDoc(d.ref);
+
+  const memberSnap = await getDocs(members(instId));
+  for (const m of memberSnap.docs) {
+    if (m.id === uid) continue;
+    await deleteDoc(doc(collection(db, "users", m.id, "memberships"), instId)).catch(() => {});
+    await deleteDoc(m.ref);
+  }
+
+  await deleteDoc(doc(myMemberships(uid), instId));
+  await deleteDoc(institution(instId));
+  await deleteDoc(doc(members(instId), uid));
+}
+
 // ── Institution detail / members ──
 
 function mapInstitution(id: string, data: DocumentData): Institution {

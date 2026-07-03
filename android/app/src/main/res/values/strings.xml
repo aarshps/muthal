@@ -44,6 +44,7 @@
     <string name="demote_to_member">Demote to member</string>
     <string name="remove_member">Remove member</string>
     <string name="leave_institution">Leave institution</string>
+    <string name="delete_institution">Delete institution</string>
     <string name="new_category">New category</string>
     <string name="category_name_hint">Category name</string>
     <string name="start_date">Start date</string>

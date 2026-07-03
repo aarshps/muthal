@@ -100,7 +100,13 @@ service cloud.firestore {
                     && request.resource.data.institutionId is string
                     && request.resource.data.name is string
                     && get(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)).data.ownerId == request.auth.uid;
-      allow update, delete: if false;
+      // Deleting an institution reclaims its code — only the (still-existing, at the
+      // time this write is evaluated) institution's owner may do it. Must run before
+      // the institution doc itself is deleted (see deleteInstitution's write order in
+      // each platform's data layer) since this get() needs it to still exist.
+      allow delete: if signedIn()
+                    && get(/databases/$(database)/documents/institutions/$(resource.data.institutionId)).data.ownerId == request.auth.uid;
+      allow update: if false;
     }
 
     match /users/{uid}/memberships/{instId} {
