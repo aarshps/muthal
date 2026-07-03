@@ -46,6 +46,7 @@ class SettingsActivity : BaseActivity() {
 
         setupProfile()
         setupAppearance()
+        setupFontToggle()
         setupPreferences()
         setupAbout()
         setupAccountButtons()
@@ -71,12 +72,16 @@ class SettingsActivity : BaseActivity() {
     }
 
     private fun setupAppearance() {
-        ChipHelper.styleChipGroup(b.themeChips)
+        // Chip must be checked BEFORE the first styleChipGroup() call — ChipHelper reads
+        // chip.isChecked synchronously to decide filled-vs-outlined styling, so styling
+        // the group first (while every chip is still unchecked) left the selected pill
+        // looking unselected until the user tapped a chip and the listener re-styled it.
         when (PreferenceHelper.getThemeMode(this)) {
             AppCompatDelegate.MODE_NIGHT_NO -> b.chipThemeLight.isChecked = true
             AppCompatDelegate.MODE_NIGHT_YES -> b.chipThemeDark.isChecked = true
             else -> b.chipThemeSystem.isChecked = true
         }
+        ChipHelper.styleChipGroup(b.themeChips)
         b.themeChips.setOnCheckedStateChangeListener { group, checkedIds ->
             PreferenceHelper.performHaptics(group, HapticFeedbackConstants.CLOCK_TICK)
             ChipHelper.styleChipGroup(group)
@@ -87,6 +92,17 @@ class SettingsActivity : BaseActivity() {
             }
             PreferenceHelper.setThemeMode(this, mode)
             AppCompatDelegate.setDefaultNightMode(mode)
+        }
+    }
+
+    /** Google Sans (brand, rounded) vs the device's system font — same preference the
+     * web Settings screen exposes as "Rounded font" (Pathivu/Varisankya Android parity). */
+    private fun setupFontToggle() {
+        b.switchGoogleFont.isChecked = PreferenceHelper.isGoogleFontEnabled(this)
+        b.switchGoogleFont.setOnCheckedChangeListener { view, checked ->
+            PreferenceHelper.performClickHaptic(view)
+            PreferenceHelper.setGoogleFontEnabled(this, checked)
+            recreate()
         }
     }
 

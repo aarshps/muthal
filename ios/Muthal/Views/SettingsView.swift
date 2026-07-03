@@ -13,6 +13,7 @@ struct SettingsView: View {
     @AppStorage("appearance_mode") private var appearanceMode = "system"
     @AppStorage("haptics_enabled") private var hapticsEnabled = true
     @AppStorage("biometric_enabled") private var biometricEnabled = false
+    @AppStorage("use_google_font") private var useGoogleFont = true
 
     @State private var confirmDelete = false
     @State private var deleting = false
@@ -78,6 +79,13 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.segmented)
                 .onChange(of: appearanceMode) { Haptics.tick() }
+
+                Divider()
+
+                Toggle(isOn: $useGoogleFont) {
+                    LabelStack(title: "Rounded font", subtitle: "Use the brand rounded font everywhere")
+                }
+                .onChange(of: useGoogleFont) { Haptics.click() }
             }
         }
     }

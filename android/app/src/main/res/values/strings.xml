@@ -10,6 +10,8 @@
     <string name="appearance">Appearance</string>
     <string name="theme">Theme</string>
     <string name="theme_subtitle">Follow the system, or force light/dark</string>
+    <string name="google_sans_font">Google Sans font</string>
+    <string name="google_sans_font_subtitle">Rounded, expressive typography</string>
     <string name="preferences">Preferences</string>
     <string name="haptics">Haptic feedback</string>
     <string name="haptics_subtitle">Vibration on taps and key actions</string>

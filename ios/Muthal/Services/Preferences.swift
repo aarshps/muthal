@@ -12,11 +12,17 @@ final class Preferences {
         static let hapticsEnabled = "haptics_enabled"
         static let biometricEnabled = "biometric_enabled"
         static let appearance = "appearance_mode"
+        static let useGoogleFont = "use_google_font"
     }
 
     var hapticsEnabled: Bool {
         get { defaults.object(forKey: Key.hapticsEnabled) as? Bool ?? true }
         set { defaults.set(newValue, forKey: Key.hapticsEnabled) }
+    }
+
+    var useGoogleFont: Bool {
+        get { defaults.object(forKey: Key.useGoogleFont) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Key.useGoogleFont) }
     }
 
     var biometricEnabled: Bool {
