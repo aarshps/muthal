@@ -2,28 +2,113 @@ rules_version = '2';
 
 // Firestore security rules for Muthal (income/expense ledger for institutions).
 //
-// Every signed-in user has full read/write access to everything under their own
-// /users/{userId} subtree. Data is strictly per-user: nothing is readable or
-// writable across accounts.
+// v2 — multi-user institutions with roles (owner / admin / member). See
+// shared/domain/SPEC.md §1-3 for the full data model and role matrix.
 //
 // Layout:
-//   /users/{userId}/institutions/{instId}                    institution doc
-//   /users/{userId}/institutions/{instId}/entries/{entryId}  entry (authoritative)
-//   /users/{userId}/entries/{entryId}                        flat mirror (collection-group read)
+//   /institutions/{instId}                              institution doc
+//   /institutions/{instId}/members/{uid}                 role + denormalized profile
+//   /institutions/{instId}/categories/{categoryId}       per-institution category (income|expense)
+//   /institutions/{instId}/entries/{entryId}              entry (authoritative)
+//   /institutionCodes/{code}                              join-code -> institution id (public lookup)
+//   /users/{uid}/memberships/{instId}                     per-user index: my institutions + role
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null
-                        && request.auth.uid == userId;
+
+    function signedIn() {
+      return request.auth != null;
     }
 
-    // The "All entries" view reads the flat mirror across every institution via a
-    // Firestore collection-group query. The {document=**} rule above does NOT cover
-    // collection-group reads, so authorise them explicitly here. Writes still go
-    // through the per-user path above, not this group rule.
-    match /{path=**}/entries/{entryId} {
-      allow read: if request.auth != null
-                && resource.data.userId == request.auth.uid;
+    function isMember(instId) {
+      return exists(/databases/$(database)/documents/institutions/$(instId)/members/$(request.auth.uid));
+    }
+
+    function myRole(instId) {
+      return get(/databases/$(database)/documents/institutions/$(instId)/members/$(request.auth.uid)).data.role;
+    }
+
+    function isAdminOrOwner(instId) {
+      return isMember(instId) && myRole(instId) in ['owner', 'admin'];
+    }
+
+    function isOwner(instId) {
+      return isMember(instId) && myRole(instId) == 'owner';
+    }
+
+    match /institutions/{instId} {
+      allow read: if signedIn() && isMember(instId);
+      // Creation: the client writes this doc, its own owner membership doc, its
+      // memberships index doc, and the institutionCodes reservation in one batch.
+      // ownerId must be the creator; a member doc for the creator must exist in the
+      // SAME batch (Firestore evaluates batched writes' rules independently per doc,
+      // so this create rule alone cannot see the sibling writes — the owner-membership
+      // write below is what actually gates "did the creator make themselves owner").
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if signedIn() && isAdminOrOwner(instId)
+                    // only an owner may change ownerId (i.e. never, in this pass —
+                    // ownership transfer is out of scope; ownerId is immutable)
+                    && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if signedIn() && isOwner(instId);
+
+      match /members/{memberUid} {
+        allow read: if signedIn() && isMember(instId);
+        // Self-service join, default role: a user may only create THEIR OWN member
+        // doc, and only with role 'member'. Anything higher must come from an owner
+        // (the update rule below) — EXCEPT the one-time owner bootstrap immediately
+        // below, which is the only way a role:'owner' doc is ever created via create.
+        //
+        // Owner bootstrap: institution creation is a SEQUENCE of writes, not one
+        // atomic batch (rules cannot see sibling writes within the same batch/
+        // transaction) — the client creates `institutions/{instId}` first (ownerId
+        // must equal the creator, enforced by that doc's own create rule) and only
+        // THEN creates their own member doc with role:'owner'. Because the
+        // institution doc is already committed by that point, this get() reads real
+        // data: only the verified ownerId of an institution may ever create a
+        // role:'owner' member doc for themselves, and never for anyone else
+        // (memberUid == request.auth.uid is still required). No other path can
+        // mint an 'owner' role.
+        allow create: if signedIn() && memberUid == request.auth.uid && (
+                        request.resource.data.role == 'member' ||
+                        (request.resource.data.role == 'owner' &&
+                         get(/databases/$(database)/documents/institutions/$(instId)).data.ownerId == request.auth.uid)
+                      );
+        // Role changes (promote/demote) and removing someone else: owner only.
+        // A member may always delete (leave) their own membership.
+        allow update: if signedIn() && isOwner(instId);
+        allow delete: if signedIn() && (memberUid == request.auth.uid || isOwner(instId));
+      }
+
+      match /categories/{categoryId} {
+        allow read: if signedIn() && isMember(instId);
+        allow write: if signedIn() && isAdminOrOwner(instId);
+      }
+
+      match /entries/{entryId} {
+        allow read: if signedIn() && isMember(instId);
+        allow create, update, delete: if signedIn() && isAdminOrOwner(instId);
+      }
+    }
+
+    // Join-code resolution: any signed-in user may look up a code. It reveals only
+    // an institution id + display name (a denormalized preview for the "Join <name>?"
+    // confirmation screen — never entries/members/categories, which stay behind
+    // isMember()). Only the verified owner of the institution the code points at may
+    // create the reservation.
+    match /institutionCodes/{code} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+                    && request.resource.data.institutionId is string
+                    && request.resource.data.name is string
+                    && get(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)).data.ownerId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /users/{uid}/memberships/{instId} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      // A user always manages their own index doc (join/leave). An owner/admin may
+      // also write OTHER members' index docs — needed to fan out a rename/currency
+      // change, or to remove a member's index entry when the owner removes them.
+      allow write: if signedIn() && (request.auth.uid == uid || isAdminOrOwner(instId));
     }
   }
 }

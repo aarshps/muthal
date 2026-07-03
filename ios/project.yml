@@ -63,6 +63,14 @@ targets:
           - CFBundleTypeRole: Editor
             CFBundleURLSchemes:
               - $(GOOGLE_SIGN_IN_URL_SCHEME)
+          # Fallback join-link scheme (SPEC §2) — works without Associated Domains.
+          # https://muthal-web.vercel.app/join/{code} additionally needs an
+          # apple-app-site-association file + the Associated Domains entitlement
+          # (requires the Apple Developer Team ID) to open the app directly; until
+          # that's configured the web join page is the universal fallback.
+          - CFBundleTypeRole: Editor
+            CFBundleURLSchemes:
+              - muthal
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hora.muthal

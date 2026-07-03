@@ -4,9 +4,8 @@ import { useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Sheet } from "./Sheet";
 import { Button, Field, Segmented, Select, TextInput } from "./controls";
-import { categoriesFor } from "@/lib/categories";
 import { haptics } from "@/lib/haptics";
-import type { Entry, EntryType, Institution } from "@/lib/types";
+import type { Category, Entry, EntryType, Institution } from "@/lib/types";
 import type { EntryDraft } from "@/lib/firestore";
 
 const toDateInput = (ms: number) => new Date(ms).toISOString().slice(0, 10);
@@ -16,6 +15,7 @@ export function AddEntryDialog({
   open,
   onClose,
   institution,
+  categories,
   entry,
   onSave,
   onDelete,
@@ -23,49 +23,59 @@ export function AddEntryDialog({
   open: boolean;
   onClose: () => void;
   institution: Institution;
+  categories: Category[]; // this institution's live category list (SPEC §5)
   entry: Entry | null;
   onSave: (draft: EntryDraft) => Promise<void>;
   onDelete: (entry: Entry) => Promise<void>;
 }) {
   const [type, setType] = useState<EntryType>("income");
   const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("Donation");
+  const [category, setCategory] = useState("");
   const [dateStr, setDateStr] = useState(todayInput());
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset form whenever the sheet is (re)opened for a new/existing entry.
+  const categoriesFor = (t: EntryType) => categories.filter((c) => c.kind === t).map((c) => c.name);
+
+  // Reset form whenever the sheet is (re)opened for a new/existing entry —
+  // date defaults to today, or the entry's existing date when editing (SPEC §1).
   useEffect(() => {
     if (!open) return;
     if (entry) {
       setType(entry.type);
       setAmount(String(entry.amount));
-      setCategory(entry.category || categoriesFor(entry.type)[0]);
+      setCategory(entry.category || categoriesFor(entry.type)[0] || "");
       setDateStr(toDateInput(entry.date));
       setNote(entry.note);
     } else {
       setType("income");
       setAmount("");
-      setCategory(categoriesFor("income")[0]);
+      setCategory(categoriesFor("income")[0] || "");
       setDateStr(todayInput());
       setNote("");
     }
     setError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, entry]);
 
-  const categories = categoriesFor(type);
+  const currentOptions = categoriesFor(type);
 
   function changeType(t: EntryType) {
     setType(t);
     const list = categoriesFor(t);
-    if (!list.includes(category)) setCategory(list[0]);
+    if (!list.includes(category)) setCategory(list[0] || "");
   }
 
   async function save() {
     const value = parseFloat(amount);
     if (!Number.isFinite(value) || value <= 0) {
       setError("Enter an amount greater than zero.");
+      haptics.error();
+      return;
+    }
+    if (!category) {
+      setError("Pick a category.");
       haptics.error();
       return;
     }
@@ -148,21 +158,23 @@ export function AddEntryDialog({
         </Field>
 
         <Field label="Category">
-          <Select value={category} onChange={(e) => setCategory(e.target.value)}>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </Select>
+          {currentOptions.length === 0 ? (
+            <p className="text-sm text-on-surface-variant">
+              No {type} categories yet — add one from Institution &gt; Categories.
+            </p>
+          ) : (
+            <Select value={category} onChange={(e) => setCategory(e.target.value)}>
+              {currentOptions.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </Select>
+          )}
         </Field>
 
         <Field label="Date">
-          <TextInput
-            type="date"
-            value={dateStr}
-            onChange={(e) => setDateStr(e.target.value)}
-          />
+          <TextInput type="date" value={dateStr} onChange={(e) => setDateStr(e.target.value)} />
         </Field>
 
         <Field label="Note (optional)">

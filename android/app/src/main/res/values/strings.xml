@@ -21,4 +21,34 @@
     <string name="delete_account">Delete account</string>
     <string name="no_entries">No entries yet</string>
     <string name="no_entries_subtitle">Record your first income or expense for this institution.</string>
+
+    <string name="switch_institution">Switch institution</string>
+    <string name="create_institution">Create institution</string>
+    <string name="join_institution">Join institution</string>
+    <string name="join_institution_subtitle">Enter the 6-character code shared with you</string>
+    <string name="join_code_hint">Code</string>
+    <string name="join">Join</string>
+    <string name="institution_actions">Institution</string>
+    <string name="share_institution">Share institution</string>
+    <string name="manage_members">Manage members</string>
+    <string name="categories">Categories</string>
+    <string name="period_export">Period export</string>
+    <string name="date">Date</string>
+    <string name="category">Category</string>
+    <string name="owner_role">Owner</string>
+    <string name="admin_role">Admin</string>
+    <string name="member_role">Member</string>
+    <string name="promote_to_admin">Promote to admin</string>
+    <string name="demote_to_member">Demote to member</string>
+    <string name="remove_member">Remove member</string>
+    <string name="leave_institution">Leave institution</string>
+    <string name="new_category">New category</string>
+    <string name="category_name_hint">Category name</string>
+    <string name="start_date">Start date</string>
+    <string name="end_date">End date</string>
+    <string name="opening_balance">Opening balance</string>
+    <string name="closing_balance">Closing balance</string>
+    <string name="run_export">Run export</string>
+    <string name="share">Share</string>
+    <string name="delete">Delete</string>
 </resources>

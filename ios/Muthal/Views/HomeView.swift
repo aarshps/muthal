@@ -1,25 +1,26 @@
 import SwiftUI
+import UIKit
 
 struct HomeView: View {
     @EnvironmentObject var auth: AuthService
     @EnvironmentObject var store: FirestoreService
 
-    @State private var selectedId: String?
     @State private var showAddEntry = false
     @State private var showAddInstitution = false
+    @State private var showJoin = false
     @State private var showSettings = false
+    @State private var showMembers = false
+    @State private var showCategories = false
+    @State private var showExport = false
     @State private var editingEntry: Entry?
 
-    private var selected: Institution? {
-        store.institutions.first { $0.id == selectedId } ?? store.institutions.first
+    private var selected: Membership? {
+        store.memberships.first { $0.institutionId == store.institution?.id } ?? store.memberships.first
     }
-    private var filtered: [Entry] {
-        guard let inst = selected else { return [] }
-        return store.entries.filter { $0.institutionId == inst.id }
-    }
+    private var canEdit: Bool { selected?.role.isAdminOrOwner ?? false }
     private var summary: Summary {
         SummaryCalc.summarize(
-            filtered.map { .init(amount: $0.amount, type: $0.type, date: $0.date) },
+            store.entries.map { .init(amount: $0.amount, type: $0.type, date: $0.date) },
             now: Date()
         )
     }
@@ -27,44 +28,80 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if store.institutions.isEmpty {
+                if store.memberships.isEmpty {
                     ContentUnavailableView {
                         Label("Add your first institution", systemImage: "building.columns")
                     } description: {
-                        Text("Create a ledger for a temple, church, library, or any organisation.")
+                        Text("Create a ledger for a temple, church, library, or any organisation — or join one with a code.")
                     } actions: {
                         Button("Create institution") { showAddInstitution = true }
                             .buttonStyle(.borderedProminent)
+                        Button("Join with a code") { showJoin = true }
                     }
-                } else {
+                } else if let inst = store.institution {
                     List {
-                        Section { hero }
+                        Section { hero(inst) }
                         Section {
-                            if filtered.isEmpty {
-                                Text("No entries yet.").foregroundStyle(.secondary)
+                            if store.entries.isEmpty {
+                                Text(canEdit ? "No entries yet." : "Entries added by an admin will appear here.")
+                                    .foregroundStyle(.secondary)
                             } else {
-                                ForEach(filtered) { e in
-                                    Button { editingEntry = e } label: { entryRow(e) }
-                                        .buttonStyle(.plain)
+                                ForEach(store.entries) { e in
+                                    if canEdit {
+                                        Button { editingEntry = e } label: { entryRow(e, inst) }
+                                            .buttonStyle(.plain)
+                                    } else {
+                                        entryRow(e, inst)
+                                    }
                                 }
                             }
                         }
                     }
+                } else {
+                    ProgressView()
                 }
             }
             .navigationTitle("Muthal")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    if !store.institutions.isEmpty {
-                        Picker("Institution",
-                               selection: Binding(get: { selected?.id ?? "" },
-                                                  set: { selectedId = $0 })) {
-                            ForEach(store.institutions) { Text($0.name).tag($0.id) }
+                    if !store.memberships.isEmpty {
+                        Menu {
+                            ForEach(store.memberships) { m in
+                                Button {
+                                    store.selectInstitution(m.institutionId)
+                                } label: {
+                                    if m.institutionId == selected?.institutionId {
+                                        Label(m.institutionName, systemImage: "checkmark")
+                                    } else {
+                                        Text(m.institutionName)
+                                    }
+                                }
+                            }
+                            Divider()
+                            Button("Create institution") { showAddInstitution = true }
+                            Button("Join with a code") { showJoin = true }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(selected?.institutionName ?? "Muthal").fontWeight(.semibold)
+                                Image(systemName: "chevron.down")
+                            }
                         }
                     }
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button { showAddInstitution = true } label: { Image(systemName: "plus.circle") }
+                    if let selected {
+                        Menu {
+                            Button { shareInstitution() } label: { Label("Share institution", systemImage: "square.and.arrow.up") }
+                            if selected.role.isAdminOrOwner {
+                                Button { showMembers = true } label: { Label("Manage members", systemImage: "person.2") }
+                                Button { showCategories = true } label: { Label("Categories", systemImage: "list.bullet") }
+                            }
+                            Button { showExport = true } label: { Label("Period export", systemImage: "calendar") }
+                            Button(role: .destructive) { leaveInstitution() } label: { Label("Leave institution", systemImage: "rectangle.portrait.and.arrow.right") }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                        }
+                    }
                     // Family standard: profile/settings entry on the trailing edge;
                     // sign-out lives inside Settings, never on the home toolbar.
                     Button { showSettings = true } label: {
@@ -79,7 +116,7 @@ struct HomeView: View {
                 }
             }
             .overlay(alignment: .bottomTrailing) {
-                if selected != nil {
+                if canEdit {
                     Button { showAddEntry = true } label: {
                         Label("Add", systemImage: "plus").padding(.horizontal, 4)
                     }
@@ -88,19 +125,40 @@ struct HomeView: View {
                 }
             }
             .sheet(isPresented: $showAddEntry) {
-                if let inst = selected { EntrySheet(institution: inst, entry: nil) }
+                if let inst = store.institution { EntrySheet(institution: inst, entry: nil) }
             }
             .sheet(item: $editingEntry) { e in
-                let inst = store.institutions.first { $0.id == e.institutionId } ?? selected
-                if let inst { EntrySheet(institution: inst, entry: e) }
+                if let inst = store.institution { EntrySheet(institution: inst, entry: e) }
             }
             .sheet(isPresented: $showAddInstitution) { InstitutionSheet() }
+            .sheet(isPresented: $showJoin) { JoinSheet(prefillCode: store.pendingJoinCode) }
             .sheet(isPresented: $showSettings) { SettingsView() }
+            .sheet(isPresented: $showMembers) {
+                if let inst = store.institution { MembersView(institution: inst) }
+            }
+            .sheet(isPresented: $showCategories) {
+                if let inst = store.institution { CategoriesView(institution: inst) }
+            }
+            .sheet(isPresented: $showExport) {
+                if let inst = store.institution { PeriodExportView(institution: inst) }
+            }
+            .onChange(of: store.memberships) { _, list in
+                guard let inst = store.institution else {
+                    if let first = list.first { store.selectInstitution(first.institutionId) }
+                    return
+                }
+                if !list.contains(where: { $0.institutionId == inst.id }), let first = list.first {
+                    store.selectInstitution(first.institutionId)
+                }
+            }
+            .onChange(of: store.pendingJoinCode) { _, code in
+                if code != nil { showJoin = true }
+            }
         }
     }
 
-    private var hero: some View {
-        let cur = selected?.currency ?? "INR"
+    private func hero(_ inst: Institution) -> some View {
+        let cur = inst.currency
         return VStack(alignment: .leading, spacing: 6) {
             Text("BALANCE").font(.caption.bold()).foregroundStyle(.secondary)
             Text(Currency.format(summary.balance, cur))
@@ -115,7 +173,7 @@ struct HomeView: View {
         }
     }
 
-    private func entryRow(_ e: Entry) -> some View {
+    private func entryRow(_ e: Entry, _ inst: Institution) -> some View {
         HStack {
             VStack(alignment: .leading) {
                 Text(e.category.isEmpty ? "Uncategorized" : e.category).fontWeight(.semibold)
@@ -124,9 +182,23 @@ struct HomeView: View {
                 }
             }
             Spacer()
-            Text((e.type == "income" ? "+" : "−") + Currency.format(e.amount, e.currency))
+            Text((e.type == "income" ? "+" : "−") + Currency.format(e.amount, inst.currency))
                 .fontWeight(.bold)
                 .foregroundStyle(e.type == "income" ? Color.accentColor : Color.red)
         }
+    }
+
+    private func shareInstitution() {
+        guard let inst = store.institution else { return }
+        let text = "Join \"\(inst.name)\" on Muthal\n\nCode: \(inst.code)\n\(store.joinLink(inst.code))"
+        let av = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.keyWindow?.rootViewController?.present(av, animated: true)
+    }
+
+    private func leaveInstitution() {
+        guard let selected, let uid = auth.user?.uid else { return }
+        Task { try? await store.removeMember(instId: selected.institutionId, memberUid: uid) }
     }
 }

@@ -51,3 +51,46 @@ export function summarize(entries: SummaryInput[], now: number): Summary {
     monthBalance: monthIncome - monthExpense,
   };
 }
+
+export interface PeriodSummary {
+  openingBalance: number;
+  periodIncome: number;
+  periodExpense: number;
+  closingBalance: number;
+  entryCount: number;
+}
+
+/**
+ * Opening/closing balance + in-range totals for [start, endInclusive] (SPEC §7).
+ * Entries strictly before the window feed only the opening balance; entries
+ * strictly after the window are excluded entirely.
+ */
+export function periodSummarize(
+  entries: SummaryInput[],
+  start: number,
+  endInclusive: number,
+): PeriodSummary {
+  let openingBalance = 0;
+  let periodIncome = 0;
+  let periodExpense = 0;
+  let entryCount = 0;
+
+  for (const e of entries) {
+    if (e.date < start) {
+      if (e.type === "income") openingBalance += e.amount;
+      else if (e.type === "expense") openingBalance -= e.amount;
+    } else if (e.date >= start && e.date <= endInclusive) {
+      entryCount++;
+      if (e.type === "income") periodIncome += e.amount;
+      else if (e.type === "expense") periodExpense += e.amount;
+    }
+  }
+
+  return {
+    openingBalance,
+    periodIncome,
+    periodExpense,
+    closingBalance: openingBalance + periodIncome - periodExpense,
+    entryCount,
+  };
+}

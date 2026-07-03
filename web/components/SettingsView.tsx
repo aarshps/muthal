@@ -17,20 +17,15 @@ import { useTheme } from "./ThemeProvider";
 import { prefs, type Appearance } from "@/lib/prefs";
 import { analytics } from "@/lib/analytics";
 import { APP_NAME, APP_TAGLINE, PRIVACY_URL } from "@/lib/constants";
-import type { Institution } from "@/lib/types";
 
 export function SettingsView({
   onBack,
   email,
-  institutions,
-  onDeleteInstitution,
   onSignOut,
   onDeleteAccount,
 }: {
   onBack: () => void;
   email: string | null;
-  institutions: Institution[];
-  onDeleteInstitution: (id: string) => Promise<void>;
   onSignOut: () => Promise<void>;
   onDeleteAccount: () => Promise<void>;
 }) {
@@ -38,7 +33,6 @@ export function SettingsView({
     useTheme();
   const [haptics, setHapticsState] = useState(prefs.getHaptics());
   const [aboutOpen, setAboutOpen] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState<Institution | null>(null);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -85,29 +79,6 @@ export function SettingsView({
           />
         </SettingsSection>
 
-        <SettingsSection title="Institutions">
-          {institutions.length === 0 ? (
-            <p className="py-2 text-sm text-on-surface-variant">
-              No institutions yet.
-            </p>
-          ) : (
-            institutions.map((inst, i) => (
-              <div key={inst.id}>
-                {i > 0 && <SettingsDivider />}
-                <SettingsRow label={inst.name} sub={`${inst.type} · ${inst.currency}`}>
-                  <button
-                    aria-label={`Delete ${inst.name}`}
-                    onClick={() => setPendingDelete(inst)}
-                    className="rounded-full p-2 text-error transition hover:bg-error/10"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </SettingsRow>
-              </div>
-            ))
-          )}
-        </SettingsSection>
-
         <SettingsSection title="About">
           <SettingsLinkRow
             icon={<Info size={18} className="text-on-surface-variant" />}
@@ -152,26 +123,6 @@ export function SettingsView({
         description={APP_TAGLINE}
         iconSrc="/icon-512.png"
         links={[{ label: "Privacy policy", href: PRIVACY_URL }]}
-      />
-
-      <ConfirmDialog
-        open={pendingDelete !== null}
-        title="Delete institution?"
-        message={`This permanently removes "${pendingDelete?.name}" and all of its entries.`}
-        confirmLabel="Delete"
-        danger
-        busy={busy}
-        onClose={() => setPendingDelete(null)}
-        onConfirm={async () => {
-          if (!pendingDelete) return;
-          setBusy(true);
-          try {
-            await onDeleteInstitution(pendingDelete.id);
-            setPendingDelete(null);
-          } finally {
-            setBusy(false);
-          }
-        }}
       />
 
       <ConfirmDialog

@@ -1,13 +1,11 @@
 package com.hora.muthal.ui
 
+import android.app.DatePickerDialog
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.view.HapticFeedbackConstants
 import android.view.View
-import android.view.ViewGroup
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
@@ -27,22 +25,31 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.ListenerRegistration
 import com.hora.muthal.BaseActivity
+import com.hora.muthal.ConfirmationBottomSheet
 import com.hora.muthal.PreferenceHelper
 import com.hora.muthal.R
+import com.hora.muthal.SelectionBottomSheet
 import com.hora.muthal.data.FirestoreRepo
-import com.hora.muthal.util.BiometricAuthManager
 import com.hora.muthal.databinding.ActivityMainBinding
 import com.hora.muthal.databinding.SheetAddEntryBinding
 import com.hora.muthal.databinding.SheetAddInstitutionBinding
+import com.hora.muthal.model.Category
 import com.hora.muthal.model.Entry
 import com.hora.muthal.model.Institution
-import com.hora.muthal.util.Categories
+import com.hora.muthal.model.Membership
+import com.hora.muthal.model.Role
+import com.hora.muthal.util.BiometricAuthManager
 import com.hora.muthal.util.CurrencyHelper
 import com.hora.muthal.util.SummaryHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 class MainActivity : BaseActivity() {
 
@@ -50,15 +57,23 @@ class MainActivity : BaseActivity() {
     private val auth by lazy { FirebaseAuth.getInstance() }
 
     private var repo: FirestoreRepo? = null
-    private var institutions: List<Institution> = emptyList()
-    private var selectedInst: Institution? = null
-    private var allEntries: List<Entry> = emptyList()
-    private var instReg: ListenerRegistration? = null
-    private var entryReg: ListenerRegistration? = null
+    private var memberships: List<Membership> = emptyList()
+    private var selectedMembership: Membership? = null
+    private var selectedInstitution: Institution? = null
+    private var categories: List<Category> = emptyList()
+    private var entries: List<Entry> = emptyList()
 
-    private val adapter = EntryAdapter { openEntrySheet(it) }
+    private var membershipsReg: ListenerRegistration? = null
+    private var instReg: ListenerRegistration? = null
+    private var categoriesReg: ListenerRegistration? = null
+    private var entriesReg: ListenerRegistration? = null
+
+    private val adapter = EntryAdapter { entry -> if (selectedMembership?.isAdminOrOwner == true) openEntrySheet(entry) }
 
     private val institutionTypes = listOf("Temple", "Church", "Library", "Other")
+    private val dateFmt = SimpleDateFormat("d MMM yyyy", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
+
+    private var pendingJoinCode: String? = null
 
     /** Splash keep-condition: hold until first frame is decided (auth + gate + data). */
     private var uiReady = false
@@ -66,19 +81,13 @@ class MainActivity : BaseActivity() {
     private var biometricPassed = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Family splash standard (splash-and-home-standards): install BEFORE the
-        // BaseActivity theme switch, hold until the first real frame is ready.
         val splash = installSplashScreen()
         splash.setKeepOnScreenCondition { !uiReady }
-        // BaseActivity applies edge-to-edge, the brand-font theme, and re-applies
-        // Dynamic Colors per-activity (family standard).
         super.onCreate(savedInstanceState)
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
-        // Edge-to-edge insets (family standard): the AppBarLayout's own
-        // fitsSystemWindows="true" already pads for the status bar — do NOT also pad
-        // the root here, or the status-bar inset is applied twice (an empty gap above
-        // the toolbar). Only handle the BOTTOM inset, for FAB/scroll clearance.
+        pendingJoinCode = joinCodeFromIntent(intent)
+
         ViewCompat.setOnApplyWindowInsetsListener(b.root) { _, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val density = resources.displayMetrics.density
@@ -86,7 +95,7 @@ class MainActivity : BaseActivity() {
                 b.rvEntries.paddingLeft, b.rvEntries.paddingTop,
                 b.rvEntries.paddingRight, bars.bottom + (96 * density).toInt(),
             )
-            val fabParams = b.fab.layoutParams as ViewGroup.MarginLayoutParams
+            val fabParams = b.fab.layoutParams as android.view.ViewGroup.MarginLayoutParams
             fabParams.bottomMargin = bars.bottom + (16 * density).toInt()
             b.fab.layoutParams = fabParams
             insets
@@ -95,19 +104,20 @@ class MainActivity : BaseActivity() {
         b.rvEntries.adapter = adapter
 
         b.btnGoogle.setOnClickListener { signIn() }
-        b.btnAddInstitution.setOnClickListener { openInstitutionSheet() }
-        b.fab.setOnClickListener { if (selectedInst != null) openEntrySheet(null) else openInstitutionSheet() }
+        b.btnEmptyCreateInstitution.setOnClickListener { openInstitutionSheet() }
+        b.btnEmptyJoinInstitution.setOnClickListener { openJoinSheet() }
+        b.btnSwitchInstitution.setOnClickListener { openSwitcherSheet() }
+        b.btnInstitutionActions.setOnClickListener { openInstitutionActionsSheet() }
+        b.fab.setOnClickListener { if (selectedMembership?.isAdminOrOwner == true) openEntrySheet(null) }
         b.profileImage.setOnClickListener {
             PreferenceHelper.performClickHaptic(it)
             startActivity(Intent(this, SettingsActivity::class.java))
         }
         b.swipeRefresh.setOnRefreshListener {
-            // Firestore listeners are live; the gesture is just an acknowledgement.
             PreferenceHelper.performHaptics(b.swipeRefresh, HapticFeedbackConstants.CLOCK_TICK)
             b.swipeRefresh.postDelayed({ b.swipeRefresh.isRefreshing = false }, 400)
         }
 
-        // App-Lock gate (family standard): biometric before any content when enabled.
         if (auth.currentUser != null && PreferenceHelper.isBiometricEnabled(this)) {
             BiometricAuthManager.authenticate(
                 this,
@@ -120,14 +130,30 @@ class MainActivity : BaseActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        joinCodeFromIntent(intent)?.let { code ->
+            if (repo != null) resolveAndConfirmJoin(code) else pendingJoinCode = code
+        }
+    }
+
+    private fun joinCodeFromIntent(intent: Intent?): String? {
+        val data = intent?.data ?: return intent?.getStringExtra(EXTRA_JOIN_CODE)
+        val segments = data.pathSegments
+        val idx = segments.indexOf("join")
+        return if (idx >= 0 && idx + 1 < segments.size) segments[idx + 1].uppercase() else null
+    }
+
     override fun onResume() {
         super.onResume()
-        // Coming back from Settings after a sign-out / account deletion.
         if (biometricPassed && auth.currentUser == null && repo != null) {
-            instReg?.remove(); entryReg?.remove()
+            detachInstitutionListeners()
+            membershipsReg?.remove()
             repo = null
-            institutions = emptyList(); selectedInst = null; allEntries = emptyList()
-            adapter.submit(emptyList())
+            memberships = emptyList(); selectedMembership = null; selectedInstitution = null
+            categories = emptyList(); entries = emptyList()
+            adapter.submit(emptyList(), "INR")
             render()
         }
     }
@@ -149,24 +175,18 @@ class MainActivity : BaseActivity() {
         b.signInGroup.visibility = View.GONE
         b.appBar.visibility = View.VISIBLE
         b.swipeRefresh.visibility = View.VISIBLE
-        b.fab.visibility = View.VISIBLE
         loadAvatar()
         val uid = auth.currentUser?.uid ?: return
-        if (repo != null) return   // listeners already attached
+        if (repo != null) return
         repo = FirestoreRepo(uid)
-        instReg = repo!!.observeInstitutions { list ->
-            institutions = list
+        membershipsReg = repo!!.observeMemberships { list ->
+            memberships = list
             onFirstData()
-            setupInstitutionSpinner()
+            onMembershipsChanged()
         }
-        entryReg = repo!!.observeEntries { list ->
-            allEntries = list
-            onFirstData()
-            refreshEntries()
-        }
+        pendingJoinCode?.let { resolveAndConfirmJoin(it); pendingJoinCode = null }
     }
 
-    /** First snapshot: swap the skeleton for real content, release the splash. */
     private fun onFirstData() {
         if (!firstDataArrived) {
             firstDataArrived = true
@@ -176,7 +196,6 @@ class MainActivity : BaseActivity() {
         uiReady = true
     }
 
-    /** Google account photo → toolbar avatar (lightweight loader, family standard). */
     private fun loadAvatar() {
         auth.currentUser?.photoUrl?.let { url ->
             lifecycleScope.launch(Dispatchers.IO) {
@@ -188,41 +207,183 @@ class MainActivity : BaseActivity() {
         }
     }
 
-    private fun setupInstitutionSpinner() {
-        val ad = ArrayAdapter(
-            this,
-            android.R.layout.simple_spinner_dropdown_item,
-            institutions.map { it.name },
-        )
-        b.spinnerInstitution.adapter = ad
-        if (selectedInst == null || institutions.none { it.id == selectedInst?.id }) {
-            selectedInst = institutions.firstOrNull()
+    // ── Institution switching ──
+
+    private fun onMembershipsChanged() {
+        val currentId = selectedMembership?.institutionId
+        val next = if (currentId != null) memberships.firstOrNull { it.institutionId == currentId } ?: memberships.firstOrNull()
+        else memberships.firstOrNull()
+
+        if (next == null) {
+            detachInstitutionListeners()
+            selectedMembership = null; selectedInstitution = null; categories = emptyList(); entries = emptyList()
+            b.institutionContentGroup.visibility = View.GONE
+            b.noInstitutionsContainer.visibility = View.VISIBLE
+            b.btnInstitutionActions.visibility = View.GONE
+            b.fab.visibility = View.GONE
+            return
         }
-        selectedInst?.let { s ->
-            b.spinnerInstitution.setSelection(
-                institutions.indexOfFirst { it.id == s.id }.coerceAtLeast(0)
-            )
-        }
-        b.spinnerInstitution.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) {
-                selectedInst = institutions.getOrNull(pos)
-                refreshEntries()
-            }
-            override fun onNothingSelected(p: AdapterView<*>?) {}
-        }
-        refreshEntries()
+
+        b.noInstitutionsContainer.visibility = View.GONE
+        b.institutionContentGroup.visibility = View.VISIBLE
+        b.btnInstitutionActions.visibility = View.VISIBLE
+
+        val switchedInstitution = currentId != next.institutionId
+        selectedMembership = next
+        updateHeader()
+        if (switchedInstitution) attachInstitutionListeners(next.institutionId) else refreshEntries()
+    }
+
+    private fun selectInstitution(m: Membership) {
+        if (m.institutionId == selectedMembership?.institutionId) return
+        selectedMembership = m
+        updateHeader()
+        attachInstitutionListeners(m.institutionId)
+    }
+
+    private fun updateHeader() {
+        val m = selectedMembership ?: return
+        b.tvInstitutionName.text = m.institutionName
+        b.tvMyRole.text = roleLabel(m.role)
+        b.fab.visibility = if (m.isAdminOrOwner) View.VISIBLE else View.GONE
+    }
+
+    private fun roleLabel(role: String) = when (role) {
+        Role.OWNER -> getString(R.string.owner_role)
+        Role.ADMIN -> getString(R.string.admin_role)
+        else -> getString(R.string.member_role)
+    }
+
+    private fun detachInstitutionListeners() {
+        instReg?.remove(); categoriesReg?.remove(); entriesReg?.remove()
+        instReg = null; categoriesReg = null; entriesReg = null
+    }
+
+    private fun attachInstitutionListeners(instId: String) {
+        detachInstitutionListeners()
+        val r = repo ?: return
+        instReg = r.observeInstitution(instId) { inst -> selectedInstitution = inst }
+        categoriesReg = r.observeCategories(instId) { cats -> categories = cats }
+        entriesReg = r.observeEntries(instId) { list -> entries = list; refreshEntries() }
     }
 
     private fun refreshEntries() {
-        val inst = selectedInst
-        val filtered = if (inst != null) allEntries.filter { it.institutionId == inst.id } else emptyList()
-        adapter.submit(filtered)
-        b.emptyStateContainer.visibility = if (inst != null && filtered.isEmpty()) View.VISIBLE else View.GONE
-        val cur = inst?.currency ?: "INR"
-        val items = filtered.map { SummaryHelper.Item(it.amount, it.type, it.date) }
+        val cur = selectedMembership?.currency ?: "INR"
+        adapter.submit(entries, cur)
+        b.emptyStateContainer.visibility = if (selectedMembership != null && entries.isEmpty()) View.VISIBLE else View.GONE
+        val items = entries.map { SummaryHelper.Item(it.amount, it.type, it.date) }
         val s = SummaryHelper.summarize(items, System.currentTimeMillis())
         b.tvBalance.text = CurrencyHelper.format(s.balance, cur)
         b.tvMonth.text = "This month  +${CurrencyHelper.format(s.monthIncome, cur)}  /  −${CurrencyHelper.format(s.monthExpense, cur)}"
+    }
+
+    private fun openSwitcherSheet() {
+        InstitutionSwitcherBottomSheet(
+            memberships = memberships,
+            onSelect = { selectInstitution(it) },
+            onCreate = { openInstitutionSheet() },
+            onJoin = { openJoinSheet() },
+        ).show(supportFragmentManager, "switcher")
+    }
+
+    private fun openInstitutionActionsSheet() {
+        val m = selectedMembership ?: return
+        InstitutionActionsBottomSheet(
+            institutionName = m.institutionName,
+            isAdminOrOwner = m.isAdminOrOwner,
+            onShare = { shareInstitution() },
+            onMembers = { openManageMembers() },
+            onCategories = { openCategories() },
+            onExport = { openPeriodExport() },
+            onLeave = { confirmLeaveInstitution() },
+        ).show(supportFragmentManager, "inst-actions")
+    }
+
+    private fun shareInstitution() {
+        val inst = selectedInstitution
+        if (inst == null) { toast("Still loading institution details, try again"); return }
+        val r = repo ?: return
+        val text = "Join \"${inst.name}\" on Muthal\n\nCode: ${inst.code}\n${r.joinLink(inst.code)}"
+        val send = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, text) }
+        startActivity(Intent.createChooser(send, getString(R.string.share_institution)))
+    }
+
+    private fun openManageMembers() {
+        val m = selectedMembership ?: return
+        startActivity(
+            Intent(this, ManageMembersActivity::class.java)
+                .putExtra(ManageMembersActivity.EXTRA_INST_ID, m.institutionId)
+                .putExtra(ManageMembersActivity.EXTRA_INST_NAME, m.institutionName)
+                .putExtra(ManageMembersActivity.EXTRA_MY_ROLE, m.role)
+        )
+    }
+
+    private fun openCategories() {
+        val m = selectedMembership ?: return
+        startActivity(
+            Intent(this, CategoriesActivity::class.java)
+                .putExtra(CategoriesActivity.EXTRA_INST_ID, m.institutionId)
+                .putExtra(CategoriesActivity.EXTRA_INST_NAME, m.institutionName)
+        )
+    }
+
+    private fun openPeriodExport() {
+        val m = selectedMembership ?: return
+        startActivity(
+            Intent(this, PeriodExportActivity::class.java)
+                .putExtra(PeriodExportActivity.EXTRA_INST_ID, m.institutionId)
+                .putExtra(PeriodExportActivity.EXTRA_INST_NAME, m.institutionName)
+                .putExtra(PeriodExportActivity.EXTRA_CURRENCY, m.currency)
+        )
+    }
+
+    private fun confirmLeaveInstitution() {
+        val m = selectedMembership ?: return
+        val uid = auth.currentUser?.uid ?: return
+        val ownerWarning = if (m.isOwner) " You are the owner — this institution will be left without one." else ""
+        ConfirmationBottomSheet(
+            title = getString(R.string.leave_institution),
+            message = "Leave \"${m.institutionName}\"?$ownerWarning",
+            positiveButtonText = getString(R.string.leave_institution),
+            isDestructive = true,
+            onConfirm = {
+                lifecycleScope.launch {
+                    try { repo?.removeMember(m.institutionId, uid) }
+                    catch (e: Exception) { toast("Couldn't leave: ${e.message}") }
+                }
+            },
+        ).show(supportFragmentManager, "leave")
+    }
+
+    // ── Join by code ──
+
+    private fun openJoinSheet() {
+        JoinInstitutionBottomSheet(onSubmit = { code -> resolveAndConfirmJoin(code) })
+            .show(supportFragmentManager, "join")
+    }
+
+    private fun resolveAndConfirmJoin(code: String) {
+        val r = repo ?: run { pendingJoinCode = code; return }
+        lifecycleScope.launch {
+            try {
+                val preview = r.resolveCode(code)
+                if (preview == null) { toast("Invalid or expired code"); return@launch }
+                ConfirmationBottomSheet(
+                    title = getString(R.string.join_institution),
+                    message = "Join \"${preview.institutionName}\"?",
+                    positiveButtonText = getString(R.string.join),
+                    onConfirm = {
+                        lifecycleScope.launch {
+                            try {
+                                val inst = r.joinInstitution(preview)
+                                selectInstitution(Membership(inst.id, Role.MEMBER, inst.name, inst.type, inst.currency))
+                                toast("Joined ${inst.name}")
+                            } catch (e: Exception) { toast("Couldn't join: ${e.message}") }
+                        }
+                    },
+                ).show(supportFragmentManager, "join-confirm")
+            } catch (e: Exception) { toast("Couldn't resolve code: ${e.message}") }
+        }
     }
 
     // ── Auth ──
@@ -252,29 +413,44 @@ class MainActivity : BaseActivity() {
             } catch (e: NoCredentialException) {
                 toast("No Google account available on this device")
             } catch (e: GetCredentialException) {
-                // Don't mask real failures (e.g. OAuth client / SHA mismatch) as a cancel.
                 toast("Sign-in failed: ${e.message ?: e.type}")
             }
         }
     }
 
-    // ── Institution sheet ──
+    // ── Institution create sheet ──
     private fun openInstitutionSheet() {
         val sb = SheetAddInstitutionBinding.inflate(layoutInflater)
-        sb.spinnerType.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, institutionTypes)
-        sb.spinnerCurrency.adapter = ArrayAdapter(
-            this, android.R.layout.simple_spinner_dropdown_item,
-            CurrencyHelper.CURRENCIES.map { "${it.code}  ${it.symbol}" },
-        )
+        var type = institutionTypes.first()
+        var currency = CurrencyHelper.CURRENCIES.first()
+        sb.btnPickType.text = type
+        sb.btnPickCurrency.text = "${currency.code}  ${currency.symbol}"
+
+        sb.btnPickType.setOnClickListener {
+            SelectionBottomSheet(getString(R.string.new_institution), institutionTypes.toTypedArray(), type) { chosen ->
+                type = chosen; sb.btnPickType.text = chosen
+            }.show(supportFragmentManager, "pick-type")
+        }
+        sb.btnPickCurrency.setOnClickListener {
+            val options = CurrencyHelper.CURRENCIES.map { "${it.code}  ${it.symbol}" }.toTypedArray()
+            SelectionBottomSheet("Currency", options, "${currency.code}  ${currency.symbol}") { chosen ->
+                currency = CurrencyHelper.CURRENCIES.first { "${it.code}  ${it.symbol}" == chosen }
+                sb.btnPickCurrency.text = chosen
+            }.show(supportFragmentManager, "pick-currency")
+        }
+
         val dialog = BottomSheetDialog(this)
         dialog.setContentView(sb.root)
         sb.btnCreateInstitution.setOnClickListener {
             val name = sb.inputName.text?.toString()?.trim().orEmpty()
             if (name.isEmpty()) { sb.inputName.error = "Required"; return@setOnClickListener }
-            val type = institutionTypes[sb.spinnerType.selectedItemPosition]
-            val currency = CurrencyHelper.CURRENCIES[sb.spinnerCurrency.selectedItemPosition].code
-            repo?.addInstitution(name, type, currency) { id ->
-                selectedInst = Institution(id = id, name = name, type = type, currency = currency)
+            val r = repo ?: return@setOnClickListener
+            val finalType = type; val finalCurrency = currency.code
+            lifecycleScope.launch {
+                try {
+                    val inst = r.createInstitution(name, finalType, finalCurrency)
+                    selectInstitution(Membership(inst.id, Role.OWNER, inst.name, inst.type, inst.currency))
+                } catch (e: Exception) { toast("Couldn't create institution: ${e.message}") }
             }
             dialog.dismiss()
         }
@@ -283,26 +459,51 @@ class MainActivity : BaseActivity() {
 
     // ── Entry sheet ──
     private fun openEntrySheet(entry: Entry?) {
-        val inst = selectedInst ?: return
+        val m = selectedMembership ?: return
         val sb = SheetAddEntryBinding.inflate(layoutInflater)
         var currentType = entry?.type ?: "income"
+        var currentDateMillis = entry?.date ?: System.currentTimeMillis()
+        var currentCategory = entry?.category.orEmpty()
 
-        fun applyCategorySpinner() {
-            sb.spinnerCategory.adapter = ArrayAdapter(
-                this, android.R.layout.simple_spinner_dropdown_item, Categories.forType(currentType),
-            )
-            entry?.category?.let { cat ->
-                val idx = Categories.forType(currentType).indexOf(cat)
-                if (idx >= 0) sb.spinnerCategory.setSelection(idx)
-            }
+        fun categoryOptions() = categories.filter { it.kind == currentType }.map { it.name }
+
+        fun applyCategoryButton() {
+            val opts = categoryOptions()
+            if (currentCategory.isEmpty() || currentCategory !in opts) currentCategory = opts.firstOrNull().orEmpty()
+            sb.btnPickCategory.text = currentCategory.ifEmpty { getString(R.string.category) }
         }
 
         sb.toggleType.check(if (currentType == "income") sb.btnIncome.id else sb.btnExpense.id)
-        applyCategorySpinner()
+        applyCategoryButton()
+        sb.btnPickDate.text = dateFmt.format(Date(currentDateMillis))
+
         sb.toggleType.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (!isChecked) return@addOnButtonCheckedListener
             currentType = if (checkedId == sb.btnIncome.id) "income" else "expense"
-            applyCategorySpinner()
+            currentCategory = ""
+            applyCategoryButton()
+        }
+
+        sb.btnPickCategory.setOnClickListener {
+            val opts = categoryOptions()
+            if (opts.isEmpty()) { toast("No ${currentType} categories yet — add one from Institution > Categories"); return@setOnClickListener }
+            SelectionBottomSheet(getString(R.string.category), opts.toTypedArray(), currentCategory) { chosen ->
+                currentCategory = chosen; sb.btnPickCategory.text = chosen
+            }.show(supportFragmentManager, "pick-category")
+        }
+
+        sb.btnPickDate.setOnClickListener {
+            val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = currentDateMillis }
+            DatePickerDialog(
+                this,
+                { _, y, mo, d ->
+                    val picked = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+                    picked.clear(); picked.set(y, mo, d)
+                    currentDateMillis = picked.timeInMillis
+                    sb.btnPickDate.text = dateFmt.format(Date(currentDateMillis))
+                },
+                cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH),
+            ).show()
         }
 
         entry?.let {
@@ -318,14 +519,13 @@ class MainActivity : BaseActivity() {
         sb.btnSaveEntry.setOnClickListener {
             val amount = sb.inputAmount.text?.toString()?.toDoubleOrNull() ?: 0.0
             if (amount <= 0.0) { sb.inputAmount.error = "Enter an amount"; return@setOnClickListener }
-            val category = (sb.spinnerCategory.selectedItem as? String).orEmpty()
+            if (currentCategory.isEmpty()) { toast("Pick a category"); return@setOnClickListener }
             val note = sb.inputNote.text?.toString()?.trim().orEmpty()
-            val dateMillis = entry?.date ?: System.currentTimeMillis()
-            repo?.saveEntry(inst, entry?.id, dateMillis, amount, currentType, category, note)
+            repo?.saveEntry(m.institutionId, entry?.id, currentDateMillis, amount, currentType, currentCategory, note)
             dialog.dismiss()
         }
         sb.btnDelete.setOnClickListener {
-            entry?.let { repo?.deleteEntry(it.institutionId, it.id) }
+            entry?.let { repo?.deleteEntry(m.institutionId, it.id) }
             dialog.dismiss()
         }
         dialog.show()
@@ -335,6 +535,11 @@ class MainActivity : BaseActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        instReg?.remove(); entryReg?.remove()
+        membershipsReg?.remove()
+        detachInstitutionListeners()
+    }
+
+    companion object {
+        const val EXTRA_JOIN_CODE = "join_code"
     }
 }

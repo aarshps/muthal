@@ -1,26 +1,40 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Building2, History, Plus, Settings } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Building2, MoreVertical, Settings } from "lucide-react";
 import { AppBar } from "./AppBar";
 import { SignIn } from "./SignIn";
 import { EmptyState } from "./EmptyState";
-import { Select } from "./controls";
 import { Home } from "./Home";
-import { HistoryView } from "./HistoryView";
 import { SettingsView } from "./SettingsView";
 import { AddEntryDialog } from "./AddEntryDialog";
 import { InstitutionDialog } from "./InstitutionDialog";
+import { InstitutionSwitcher } from "./InstitutionSwitcher";
+import { JoinDialog } from "./JoinDialog";
+import { InstitutionActionsSheet } from "./InstitutionActionsSheet";
+import { ManageMembersView } from "./ManageMembersView";
+import { CategoriesView } from "./CategoriesView";
+import { PeriodExportView } from "./PeriodExportView";
 import { useAuth } from "@/hooks/useAuth";
-import { useInstitutions } from "@/hooks/useInstitutions";
-import { useEntries } from "@/hooks/useEntries";
-import { saveEntry, deleteEntry, type EntryDraft } from "@/lib/firestore";
+import { useMemberships } from "@/hooks/useMemberships";
+import { useInstitutionDetail } from "@/hooks/useInstitutionDetail";
+import {
+  createInstitution,
+  deleteEntry,
+  joinInstitution,
+  joinLink,
+  removeMember,
+  resolveCode,
+  saveEntry,
+  type EntryDraft,
+} from "@/lib/firestore";
 import { firebaseReady } from "@/lib/firebase";
 import { analytics } from "@/lib/analytics";
 import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
-import type { Entry, Institution } from "@/lib/types";
+import { haptics } from "@/lib/haptics";
+import type { Entry } from "@/lib/types";
 
-type View = "home" | "history" | "settings";
+type View = "home" | "settings" | "members" | "categories" | "export";
 
 function Splash() {
   return (
@@ -30,25 +44,33 @@ function Splash() {
   );
 }
 
-export function App() {
+export function App({ initialJoinCode }: { initialJoinCode?: string }) {
   const auth = useAuth();
   const uid = auth.user?.uid ?? null;
-  const insts = useInstitutions(uid);
-  const { entries } = useEntries(uid);
+  const memberships = useMemberships(uid);
+  const detail = useInstitutionDetail(memberships.selected?.institutionId ?? null);
 
   const [view, setView] = useState<View>("home");
   const [createOpen, setCreateOpen] = useState(false);
-  const [entryDialog, setEntryDialog] = useState<{
-    entry: Entry | null;
-    institution: Institution;
-  } | null>(null);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [joinOpen, setJoinOpen] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [entryDialogOpen, setEntryDialogOpen] = useState<Entry | "new" | null>(null);
+  const [pendingJoinCode, setPendingJoinCode] = useState<string | undefined>(initialJoinCode);
 
-  const institutionEntries = useMemo(
-    () =>
-      insts.selected
-        ? entries.filter((e) => e.institutionId === insts.selected!.id)
-        : [],
-    [entries, insts.selected],
+  useEffect(() => {
+    if (pendingJoinCode && auth.user) {
+      setJoinOpen(true);
+    }
+  }, [pendingJoinCode, auth.user]);
+
+  const profile = useMemo(
+    () => ({
+      displayName: auth.user?.displayName ?? "",
+      email: auth.user?.email ?? "",
+      photoUrl: auth.user?.photoURL ?? "",
+    }),
+    [auth.user],
   );
 
   // ── Auth gates ──
@@ -77,8 +99,6 @@ export function App() {
         <SettingsView
           onBack={() => setView("home")}
           email={auth.user.email}
-          institutions={insts.institutions}
-          onDeleteInstitution={insts.remove}
           onSignOut={auth.signOut}
           onDeleteAccount={auth.deleteAccount}
         />
@@ -86,28 +106,34 @@ export function App() {
     );
   }
 
-  if (view === "history") {
+  if (view === "members" && detail.institution) {
     return (
       <div className="mx-auto max-w-md">
-        <HistoryView
-          entries={entries}
-          onBack={() => setView("home")}
-          onEdit={(e) => {
-            const inst =
-              insts.institutions.find((i) => i.id === e.institutionId) ??
-              insts.selected;
-            if (inst) {
-              analytics.entryEditOpen();
-              setEntryDialog({ entry: e, institution: inst });
-            }
-          }}
-        />
+        <ManageMembersView institution={detail.institution} myUid={uid!} onBack={() => setView("home")} />
+      </div>
+    );
+  }
+
+  if (view === "categories" && detail.institution) {
+    return (
+      <div className="mx-auto max-w-md">
+        <CategoriesView institution={detail.institution} onBack={() => setView("home")} />
+      </div>
+    );
+  }
+
+  if (view === "export" && detail.institution) {
+    return (
+      <div className="mx-auto max-w-md">
+        <PeriodExportView institution={detail.institution} onBack={() => setView("home")} />
       </div>
     );
   }
 
   // ── Home ──
-  const noInstitutions = !insts.loading && insts.institutions.length === 0;
+  const noInstitutions = !memberships.loading && memberships.memberships.length === 0;
+  const selected = memberships.selected;
+  const canEdit = selected ? selected.role === "owner" || selected.role === "admin" : false;
 
   return (
     <div className="mx-auto max-w-md px-4">
@@ -126,16 +152,15 @@ export function App() {
           </button>
         }
         actions={
-          <button
-            aria-label="All entries"
-            onClick={() => {
-              setView("history");
-              analytics.screenHistoryOpen();
-            }}
-            className="rounded-full p-2 transition hover:bg-black/5 dark:hover:bg-white/10"
-          >
-            <History size={22} />
-          </button>
+          selected && (
+            <button
+              aria-label="Institution actions"
+              onClick={() => setActionsOpen(true)}
+              className="rounded-full p-2 transition hover:bg-black/5 dark:hover:bg-white/10"
+            >
+              <MoreVertical size={22} />
+            </button>
+          )
         }
       />
 
@@ -144,54 +169,48 @@ export function App() {
           <EmptyState
             icon={<Building2 size={28} className="text-on-surface-variant" />}
             title="Add your first institution"
-            description="Create a ledger for a temple, church, library, or any organisation you manage."
+            description="Create a ledger for a temple, church, library, or any organisation you manage — or join one with a code."
             actionLabel="Create institution"
             onAction={() => {
               setCreateOpen(true);
               analytics.institutionAddOpen();
             }}
           />
+          <button
+            onClick={() => setJoinOpen(true)}
+            className="mx-auto mt-3 block text-sm font-semibold text-primary"
+          >
+            Join with a code instead
+          </button>
         </div>
-      ) : insts.selected ? (
+      ) : selected && detail.institution ? (
         <>
-          {/* Institution switcher */}
-          <div className="mb-4 flex items-center gap-2">
-            <Select
-              className="flex-1"
-              value={insts.selected.id}
-              onChange={(e) => {
-                insts.setSelectedId(e.target.value);
-                analytics.institutionSwitch();
-              }}
-            >
-              {insts.institutions.map((i) => (
-                <option key={i.id} value={i.id}>
-                  {i.name}
-                </option>
-              ))}
-            </Select>
-            <button
-              aria-label="New institution"
-              onClick={() => {
-                setCreateOpen(true);
-                analytics.institutionAddOpen();
-              }}
-              className="grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-outline-strong text-primary transition hover:bg-primary/10"
-            >
-              <Plus size={20} />
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              setSwitcherOpen(true);
+              analytics.institutionSwitcherOpen();
+            }}
+            className="mb-4 flex w-full items-center gap-3 rounded-2xl bg-surface-2 px-4 py-3 text-left transition hover:opacity-90"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-bold">{selected.institutionName}</p>
+            </div>
+            <span className="shrink-0 rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold text-on-secondary-container">
+              {selected.role === "owner" ? "Owner" : selected.role === "admin" ? "Admin" : "Member"}
+            </span>
+          </button>
 
           <Home
-            institution={insts.selected}
-            entries={institutionEntries}
+            institution={detail.institution}
+            entries={detail.entries}
+            canEdit={canEdit}
             onAdd={() => {
               analytics.entryAddOpen();
-              setEntryDialog({ entry: null, institution: insts.selected! });
+              setEntryDialogOpen("new");
             }}
             onEdit={(e) => {
               analytics.entryEditOpen();
-              setEntryDialog({ entry: e, institution: insts.selected! });
+              setEntryDialogOpen(e);
             }}
           />
         </>
@@ -200,18 +219,19 @@ export function App() {
       )}
 
       {/* Dialogs */}
-      {entryDialog && (
+      {entryDialogOpen && detail.institution && (
         <AddEntryDialog
           open
-          onClose={() => setEntryDialog(null)}
-          institution={entryDialog.institution}
-          entry={entryDialog.entry}
+          onClose={() => setEntryDialogOpen(null)}
+          institution={detail.institution}
+          categories={detail.categories}
+          entry={entryDialogOpen === "new" ? null : entryDialogOpen}
           onSave={async (draft: EntryDraft) => {
-            await saveEntry(auth.user!.uid, entryDialog.institution, draft);
+            await saveEntry(uid!, detail.institution!.id, draft);
             analytics.entrySave(!draft.id, draft.type);
           }}
           onDelete={async (e) => {
-            await deleteEntry(auth.user!.uid, e.institutionId, e.id);
+            await deleteEntry(detail.institution!.id, e.id);
             analytics.entryDelete();
           }}
         />
@@ -221,11 +241,80 @@ export function App() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreate={async (input) => {
-          const id = await insts.add(input);
-          insts.setSelectedId(id);
+          const inst = await createInstitution(uid!, profile, input);
+          memberships.setSelectedId(inst.id);
           analytics.institutionSave();
         }}
       />
+
+      <InstitutionSwitcher
+        open={switcherOpen}
+        onClose={() => setSwitcherOpen(false)}
+        memberships={memberships.memberships}
+        selectedId={memberships.selectedId}
+        onSelect={(id) => {
+          memberships.setSelectedId(id);
+          analytics.institutionSwitch();
+        }}
+        onCreate={() => {
+          setCreateOpen(true);
+          analytics.institutionAddOpen();
+        }}
+        onJoin={() => {
+          setJoinOpen(true);
+          analytics.institutionJoinOpen();
+        }}
+      />
+
+      <JoinDialog
+        open={joinOpen}
+        onClose={() => {
+          setJoinOpen(false);
+          setPendingJoinCode(undefined);
+        }}
+        initialCode={pendingJoinCode}
+        onResolve={resolveCode}
+        onJoin={async (preview) => {
+          const inst = await joinInstitution(uid!, profile, preview);
+          memberships.setSelectedId(inst.id);
+          analytics.institutionJoin();
+        }}
+      />
+
+      {selected && (
+        <InstitutionActionsSheet
+          open={actionsOpen}
+          onClose={() => setActionsOpen(false)}
+          institutionName={selected.institutionName}
+          role={selected.role}
+          onShare={async () => {
+            if (!detail.institution) return;
+            const text = `Join "${detail.institution.name}" on Muthal\n\nCode: ${detail.institution.code}\n${joinLink(detail.institution.code)}`;
+            analytics.institutionShare();
+            if (navigator.share) {
+              try {
+                await navigator.share({ text });
+                return;
+              } catch {
+                // fall through to clipboard
+              }
+            }
+            await navigator.clipboard.writeText(text);
+            haptics.success();
+          }}
+          onMembers={() => setView("members")}
+          onCategories={() => setView("categories")}
+          onExport={() => {
+            setView("export");
+            analytics.exportOpen();
+          }}
+          onLeave={async () => {
+            if (!selected || !uid) return;
+            await removeMember(selected.institutionId, uid);
+            analytics.institutionLeave();
+          }}
+        />
+      )}
     </div>
   );
 }

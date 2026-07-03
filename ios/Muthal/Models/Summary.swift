@@ -39,4 +39,33 @@ enum SummaryCalc {
             monthIncome: mi, monthExpense: me, monthBalance: mi - me
         )
     }
+
+    /// Opening/closing balance + in-range totals for [start, endInclusive] (SPEC §7).
+    /// Entries strictly before the window feed only the opening balance; entries
+    /// strictly after the window are excluded entirely.
+    static func periodSummarize(_ entries: [Item], start: Date, endInclusive: Date) -> PeriodSummary {
+        var opening = 0.0, periodIncome = 0.0, periodExpense = 0.0, count = 0
+        for e in entries {
+            if e.date < start {
+                if e.type == "income" { opening += e.amount }
+                else if e.type == "expense" { opening -= e.amount }
+            } else if e.date >= start && e.date <= endInclusive {
+                count += 1
+                if e.type == "income" { periodIncome += e.amount }
+                else if e.type == "expense" { periodExpense += e.amount }
+            }
+        }
+        return PeriodSummary(
+            openingBalance: opening, periodIncome: periodIncome, periodExpense: periodExpense,
+            closingBalance: opening + periodIncome - periodExpense, entryCount: count
+        )
+    }
+}
+
+struct PeriodSummary {
+    let openingBalance: Double
+    let periodIncome: Double
+    let periodExpense: Double
+    let closingBalance: Double
+    let entryCount: Int
 }

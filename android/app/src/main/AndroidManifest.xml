@@ -28,6 +28,42 @@
             android:name=".ui.SettingsActivity"
             android:exported="false"
             android:theme="@style/Theme.Muthal" />
+
+        <activity
+            android:name=".ui.ManageMembersActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Muthal" />
+
+        <activity
+            android:name=".ui.CategoriesActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Muthal" />
+
+        <activity
+            android:name=".ui.PeriodExportActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Muthal" />
+
+        <!-- App Links target for the universal join link (SPEC §2). Verification
+             requires https://muthal-web.vercel.app/.well-known/assetlinks.json to list
+             this app's signing certificate SHA-256 fingerprints (Play App Signing +
+             upload key) — same follow-up as the Google Sign-in SHA-1 registration; until
+             that file is populated, Android falls back to opening the web join page
+             instead of the app, which still works (SPEC's "universal fallback"). -->
+        <activity
+            android:name=".ui.JoinActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="muthal-web.vercel.app"
+                    android:pathPrefix="/join/" />
+            </intent-filter>
+        </activity>
     </application>
 
 </manifest>

@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { compactFormat, formatCurrency } from "../currency";
 import { categoriesFor } from "../categories";
-import { summarize, type Summary } from "../summary";
+import { summarize, periodSummarize, type Summary, type PeriodSummary } from "../summary";
 
 interface Vectors {
   currency: {
@@ -21,6 +21,12 @@ interface Vectors {
     now: string;
     entries: { amount: number; type: string; date: string }[];
     expected: Summary;
+  }[];
+  periodSummary: {
+    start: string;
+    endInclusive: string;
+    entries: { amount: number; type: string; date: string }[];
+    expected: PeriodSummary;
   }[];
 }
 
@@ -67,4 +73,22 @@ describe("golden vectors — summary", () => {
     );
     expect(result).toEqual(expected);
   });
+});
+
+describe("golden vectors — periodSummary", () => {
+  it.each(vectors.periodSummary)(
+    "periodSummarize case #%#",
+    ({ start, endInclusive, entries, expected }) => {
+      const result = periodSummarize(
+        entries.map((e) => ({
+          amount: e.amount,
+          type: e.type,
+          date: Date.parse(e.date),
+        })),
+        Date.parse(start),
+        Date.parse(endInclusive),
+      );
+      expect(result).toEqual(expected);
+    },
+  );
 });

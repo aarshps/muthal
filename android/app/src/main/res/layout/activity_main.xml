@@ -112,18 +112,35 @@
                     android:textStyle="bold" />
             </LinearLayout>
 
-            <com.google.android.material.imageview.ShapeableImageView
-                android:id="@+id/profileImage"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:layout_gravity="end"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:clickable="true"
-                android:contentDescription="@string/settings"
-                android:focusable="true"
-                android:src="@drawable/ic_settings"
-                app:shapeAppearanceOverlay="@style/App.ShapeAppearanceOverlay.Rounded"
-                tools:src="@tools:sample/avatars" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnInstitutionActions"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="4dp"
+                    android:contentDescription="@string/institution_actions"
+                    android:visibility="gone"
+                    app:icon="@drawable/ic_share" />
+
+                <com.google.android.material.imageview.ShapeableImageView
+                    android:id="@+id/profileImage"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:contentDescription="@string/settings"
+                    android:focusable="true"
+                    android:src="@drawable/ic_settings"
+                    app:shapeAppearanceOverlay="@style/App.ShapeAppearanceOverlay.Rounded"
+                    tools:src="@tools:sample/avatars" />
+            </LinearLayout>
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -159,29 +176,109 @@
                     android:orientation="vertical"
                     android:visibility="gone">
 
-                    <!-- Institution picker (Muthal-specific content row) -->
+                    <!-- No institutions yet: create/join prompt -->
                     <LinearLayout
+                        android:id="@+id/noInstitutionsContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:paddingHorizontal="32dp"
+                        android:paddingVertical="48dp"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/new_institution"
+                            android:textAppearance="?attr/textAppearanceTitleMedium"
+                            android:textColor="?attr/colorOnSurface" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:layout_marginBottom="20dp"
+                            android:gravity="center"
+                            android:text="@string/join_institution_subtitle"
+                            android:textAppearance="?attr/textAppearanceBodyMedium"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnEmptyCreateInstitution"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp"
+                            android:text="@string/create_institution" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnEmptyJoinInstitution"
+                            style="?attr/materialButtonOutlinedStyle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/join_institution" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/institutionContentGroup"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                    <!-- Institution switcher (Muthal-specific content row) -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/btnSwitchInstitution"
+                        style="?attr/materialCardViewFilledStyle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginHorizontal="16dp"
                         android:layout_marginTop="4dp"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
+                        android:checkable="true"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+                        app:cardCornerRadius="18dp"
+                        app:strokeWidth="0dp">
 
-                        <Spinner
-                            android:id="@+id/spinnerInstitution"
-                            android:layout_width="0dp"
+                        <LinearLayout
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1" />
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="16dp"
+                            android:paddingVertical="12dp">
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnAddInstitution"
-                            style="@style/Widget.Material3.Button.IconButton.Outlined"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:contentDescription="@string/new_institution"
-                            app:icon="@drawable/ic_add" />
-                    </LinearLayout>
+                            <TextView
+                                android:id="@+id/tvInstitutionName"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:ellipsize="end"
+                                android:maxLines="1"
+                                android:textAppearance="?attr/textAppearanceTitleMedium"
+                                android:textColor="?attr/colorOnSurface"
+                                tools:text="Sree Temple Trust" />
+
+                            <TextView
+                                android:id="@+id/tvMyRole"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginEnd="8dp"
+                                android:background="@drawable/background_pill_secondary"
+                                android:paddingHorizontal="10dp"
+                                android:paddingVertical="3dp"
+                                android:textAppearance="?attr/textAppearanceLabelSmall"
+                                android:textColor="?attr/colorOnSecondaryContainer"
+                                tools:text="Owner" />
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:contentDescription="@null"
+                                android:src="@drawable/ic_chevron_right" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
 
                     <!-- Hero card (family standard) -->
                     <com.google.android.material.card.MaterialCardView
@@ -275,6 +372,7 @@
                             android:text="@string/no_entries_subtitle"
                             android:textAppearance="?attr/textAppearanceBodyMedium"
                             android:textColor="?attr/colorOnSurfaceVariant" />
+                    </LinearLayout>
                     </LinearLayout>
                 </LinearLayout>
             </LinearLayout>

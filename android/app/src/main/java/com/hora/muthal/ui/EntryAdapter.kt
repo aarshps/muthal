@@ -17,13 +17,15 @@ class EntryAdapter(private val onClick: (Entry) -> Unit) :
     RecyclerView.Adapter<EntryAdapter.VH>() {
 
     private var items: List<Entry> = emptyList()
+    private var currency: String = "INR"
 
     private val dateFmt = SimpleDateFormat("d MMM yyyy", Locale.US).apply {
         timeZone = TimeZone.getTimeZone("UTC")
     }
 
-    fun submit(list: List<Entry>) {
+    fun submit(list: List<Entry>, currencyCode: String) {
         items = list
+        currency = currencyCode
         notifyDataSetChanged()
     }
 
@@ -39,7 +41,7 @@ class EntryAdapter(private val onClick: (Entry) -> Unit) :
         h.b.tvCategory.text = e.category.ifEmpty { "Uncategorized" }
         h.b.tvSub.text = if (e.note.isNotEmpty()) e.note else dateFmt.format(Date(e.date))
         val sign = if (e.type == "income") "+" else "−"
-        h.b.tvAmount.text = sign + CurrencyHelper.format(e.amount, e.currency)
+        h.b.tvAmount.text = sign + CurrencyHelper.format(e.amount, currency)
         val colorRes = if (e.type == "income") R.color.income else R.color.expense
         h.b.tvAmount.setTextColor(ContextCompat.getColor(h.b.tvAmount.context, colorRes))
         h.b.root.setOnClickListener { onClick(e) }

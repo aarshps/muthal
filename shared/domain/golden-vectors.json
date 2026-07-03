@@ -79,5 +79,70 @@
         "monthBalance": -500
       }
     }
+  ],
+  "periodSummary": [
+    {
+      "_name": "entries before, inside, and after the window",
+      "start": "2026-06-01T00:00:00Z",
+      "endInclusive": "2026-06-15T23:59:59Z",
+      "entries": [
+        { "amount": 1000, "type": "income", "date": "2026-05-01T00:00:00Z" },
+        { "amount": 200, "type": "expense", "date": "2026-05-20T00:00:00Z" },
+        { "amount": 500, "type": "income", "date": "2026-06-05T00:00:00Z" },
+        { "amount": 100, "type": "expense", "date": "2026-06-10T00:00:00Z" },
+        { "amount": 9999, "type": "income", "date": "2026-06-20T00:00:00Z" }
+      ],
+      "expected": {
+        "openingBalance": 800,
+        "periodIncome": 500,
+        "periodExpense": 100,
+        "closingBalance": 1200,
+        "entryCount": 2
+      }
+    },
+    {
+      "_name": "empty ledger",
+      "start": "2026-01-01T00:00:00Z",
+      "endInclusive": "2026-01-31T23:59:59Z",
+      "entries": [],
+      "expected": {
+        "openingBalance": 0,
+        "periodIncome": 0,
+        "periodExpense": 0,
+        "closingBalance": 0,
+        "entryCount": 0
+      }
+    },
+    {
+      "_name": "all entries before window (closing equals opening, no period entries)",
+      "start": "2026-06-01T00:00:00Z",
+      "endInclusive": "2026-06-30T23:59:59Z",
+      "entries": [
+        { "amount": 400, "type": "income", "date": "2026-01-01T00:00:00Z" }
+      ],
+      "expected": {
+        "openingBalance": 400,
+        "periodIncome": 0,
+        "periodExpense": 0,
+        "closingBalance": 400,
+        "entryCount": 0
+      }
+    },
+    {
+      "_name": "boundary inclusivity: entries exactly at start and exactly at endInclusive both count as in-range",
+      "start": "2026-06-01T00:00:00Z",
+      "endInclusive": "2026-06-30T23:59:59Z",
+      "entries": [
+        { "amount": 100, "type": "income", "date": "2026-06-01T00:00:00Z" },
+        { "amount": 50, "type": "expense", "date": "2026-06-30T23:59:59Z" }
+      ],
+      "expected": {
+        "openingBalance": 0,
+        "periodIncome": 100,
+        "periodExpense": 50,
+        "closingBalance": 50,
+        "entryCount": 2
+      }
+    }
   ]
 }

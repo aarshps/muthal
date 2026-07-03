@@ -66,4 +66,26 @@ final class GoldenVectorsTests: XCTestCase {
             XCTAssertEqual(s.monthBalance, (exp["monthBalance"] as! NSNumber).doubleValue, accuracy: 0.001)
         }
     }
+
+    func testPeriodSummary() throws {
+        for case let o as [String: Any] in try loadVectors()["periodSummary"] as! [Any] {
+            let start = iso(o["start"] as! String)
+            let endInclusive = iso(o["endInclusive"] as! String)
+            let items = (o["entries"] as! [Any]).compactMap { any -> SummaryCalc.Item? in
+                guard let e = any as? [String: Any] else { return nil }
+                return SummaryCalc.Item(
+                    amount: (e["amount"] as! NSNumber).doubleValue,
+                    type: e["type"] as! String,
+                    date: iso(e["date"] as! String)
+                )
+            }
+            let s = SummaryCalc.periodSummarize(items, start: start, endInclusive: endInclusive)
+            let exp = o["expected"] as! [String: Any]
+            XCTAssertEqual(s.openingBalance, (exp["openingBalance"] as! NSNumber).doubleValue, accuracy: 0.001)
+            XCTAssertEqual(s.periodIncome, (exp["periodIncome"] as! NSNumber).doubleValue, accuracy: 0.001)
+            XCTAssertEqual(s.periodExpense, (exp["periodExpense"] as! NSNumber).doubleValue, accuracy: 0.001)
+            XCTAssertEqual(s.closingBalance, (exp["closingBalance"] as! NSNumber).doubleValue, accuracy: 0.001)
+            XCTAssertEqual(s.entryCount, (exp["entryCount"] as! NSNumber).intValue)
+        }
+    }
 }

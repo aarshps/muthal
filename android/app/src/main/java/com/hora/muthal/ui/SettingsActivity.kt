@@ -140,23 +140,24 @@ class SettingsActivity : BaseActivity() {
         }
     }
 
-    /** PRIVACY.md promise: Settings → Delete account removes all user data + the auth record. */
+    /** PRIVACY.md promise: Settings → Delete account removes all user data + the auth
+     * record. Institutions are now shared (SPEC §1) — this only removes the user's OWN
+     * presence (their member doc in each institution + their memberships index), never
+     * shared entries/categories other members depend on. If the user was the sole owner
+     * of an institution, it is left ownerless per SPEC §3 (acceptable at this scale). */
     private fun deleteAccount() {
         val user = auth.currentUser ?: return
         val uid = user.uid
         val db = FirebaseFirestore.getInstance()
         lifecycleScope.launch {
             try {
-                // Delete nested entries + institutions, the flat mirror, then the user doc.
                 val userRef = db.collection("users").document(uid)
-                val institutions = userRef.collection("institutions").get().await()
-                for (inst in institutions.documents) {
-                    val entries = inst.reference.collection("entries").get().await()
-                    for (e in entries.documents) e.reference.delete().await()
-                    inst.reference.delete().await()
+                val memberships = userRef.collection("memberships").get().await()
+                for (m in memberships.documents) {
+                    db.collection("institutions").document(m.id)
+                        .collection("members").document(uid).delete().await()
+                    m.reference.delete().await()
                 }
-                val mirror = userRef.collection("entries").get().await()
-                for (e in mirror.documents) e.reference.delete().await()
                 userRef.delete().await()
                 user.delete().await()
                 Toast.makeText(this@SettingsActivity, "Account deleted", Toast.LENGTH_LONG).show()

@@ -84,4 +84,30 @@ class GoldenVectorsTest {
             assertEquals(exp.getDouble("monthBalance"), s.monthBalance, 0.001)
         }
     }
+
+    @Test
+    fun periodSummary() {
+        val arr = vectors.getJSONArray("periodSummary")
+        for (i in 0 until arr.length()) {
+            val o = arr.getJSONObject(i)
+            val start = Instant.parse(o.getString("start")).toEpochMilli()
+            val end = Instant.parse(o.getString("endInclusive")).toEpochMilli()
+            val entriesJson = o.getJSONArray("entries")
+            val items = (0 until entriesJson.length()).map {
+                val e = entriesJson.getJSONObject(it)
+                SummaryHelper.Item(
+                    e.getDouble("amount"),
+                    e.getString("type"),
+                    Instant.parse(e.getString("date")).toEpochMilli(),
+                )
+            }
+            val s = SummaryHelper.periodSummarize(items, start, end)
+            val exp = o.getJSONObject("expected")
+            assertEquals(exp.getDouble("openingBalance"), s.openingBalance, 0.001)
+            assertEquals(exp.getDouble("periodIncome"), s.periodIncome, 0.001)
+            assertEquals(exp.getDouble("periodExpense"), s.periodExpense, 0.001)
+            assertEquals(exp.getDouble("closingBalance"), s.closingBalance, 0.001)
+            assertEquals(exp.getInt("entryCount"), s.entryCount)
+        }
+    }
 }

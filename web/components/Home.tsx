@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Plus, Receipt } from "lucide-react";
 import { EmptyState } from "./EmptyState";
 import { Fab } from "./Fab";
@@ -27,16 +27,19 @@ const dayKey = (ms: number) =>
 export function Home({
   institution,
   entries,
+  canEdit,
   onAdd,
   onEdit,
 }: {
   institution: Institution;
   entries: Entry[]; // already filtered to this institution, newest first
+  canEdit: boolean; // admin/owner only (SPEC §3) — members are view-only
   onAdd: () => void;
   onEdit: (entry: Entry) => void;
 }) {
   const cur = institution.currency;
-  const summary = useMemo(() => summarize(entries, Date.now()), [entries]);
+  const [now] = useState(() => Date.now());
+  const summary = useMemo(() => summarize(entries, now), [entries, now]);
 
   // Group newest-first entries by calendar day, preserving order.
   const groups = useMemo(() => {
@@ -89,9 +92,13 @@ export function Home({
           <EmptyState
             icon={<Receipt size={28} className="text-on-surface-variant" />}
             title="No entries yet"
-            description="Record your first income or expense for this institution."
-            actionLabel="Add entry"
-            onAction={onAdd}
+            description={
+              canEdit
+                ? "Record your first income or expense for this institution."
+                : "Entries added by an admin will appear here."
+            }
+            actionLabel={canEdit ? "Add entry" : undefined}
+            onAction={canEdit ? onAdd : undefined}
           />
         </div>
       ) : (
@@ -105,11 +112,11 @@ export function Home({
                 {g.items.map((e, i) => (
                   <button
                     key={e.id}
-                    onClick={() => onEdit(e)}
-                    className={`flex items-center gap-3 bg-surface px-4 py-3 text-left transition active:scale-[0.99] ${itemClass(
-                      i,
-                      g.items.length,
-                    )}`}
+                    onClick={() => canEdit && onEdit(e)}
+                    disabled={!canEdit}
+                    className={`flex items-center gap-3 bg-surface px-4 py-3 text-left transition ${
+                      canEdit ? "active:scale-[0.99]" : "cursor-default"
+                    } ${itemClass(i, g.items.length)}`}
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold">{e.category || "Uncategorized"}</p>
@@ -125,7 +132,7 @@ export function Home({
                       }`}
                     >
                       {e.type === "income" ? "+" : "−"}
-                      {formatCurrency(e.amount, e.currency || cur)}
+                      {formatCurrency(e.amount, cur)}
                     </p>
                   </button>
                 ))}
@@ -135,7 +142,7 @@ export function Home({
         </div>
       )}
 
-      <Fab icon={<Plus size={20} />} label="Add" onClick={onAdd} />
+      {canEdit && <Fab icon={<Plus size={20} />} label="Add" onClick={onAdd} />}
     </div>
   );
 }

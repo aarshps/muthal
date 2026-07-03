@@ -24,6 +24,23 @@ export const analytics = {
   institutionSave: () => track("institution_save"),
   institutionDelete: () => track("institution_delete"),
   institutionSwitch: () => track("institution_switch"),
+  institutionSwitcherOpen: () => track("institution_switcher_open"),
+  institutionJoinOpen: () => track("institution_join_open"),
+  institutionJoin: () => track("institution_join"),
+  institutionLeave: () => track("institution_leave"),
+  institutionShare: () => track("institution_share"),
+
+  membersOpen: () => track("members_open"),
+  memberRoleChange: (role: string) => track("member_role_change", { role }),
+  memberRemove: () => track("member_remove"),
+
+  categoriesOpen: () => track("categories_open"),
+  categoryAdd: (kind: string) => track("category_add", { kind }),
+  categoryDelete: () => track("category_delete"),
+
+  exportOpen: () => track("export_open"),
+  exportRun: () => track("export_run"),
+  exportShare: () => track("export_share"),
 
   entryAddOpen: () => track("entry_add_open"),
   entryEditOpen: () => track("entry_edit_open"),

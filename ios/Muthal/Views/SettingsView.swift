@@ -158,24 +158,18 @@ struct SettingsView: View {
             .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 28))
     }
 
-    /// PRIVACY.md promise: Settings → Delete account removes all user data + the auth record.
+    /// PRIVACY.md promise: Settings → Delete account removes all user data + the auth
+    /// record. Institutions are shared (SPEC §1) — this only removes the user's OWN
+    /// presence, never entries/categories other members depend on.
     private func deleteAccount() async {
         guard let user = Auth.auth().currentUser else { return }
         deleting = true
         defer { deleting = false }
         let db = Firestore.firestore()
-        let userRef = db.collection("users").document(user.uid)
         do {
+            try await store.deleteAllUserData(uid: user.uid)
             store.stop()
-            let insts = try await userRef.collection("institutions").getDocuments()
-            for inst in insts.documents {
-                let entries = try await inst.reference.collection("entries").getDocuments()
-                for e in entries.documents { try await e.reference.delete() }
-                try await inst.reference.delete()
-            }
-            let mirror = try await userRef.collection("entries").getDocuments()
-            for e in mirror.documents { try await e.reference.delete() }
-            try await userRef.delete()
+            try await db.collection("users").document(user.uid).delete()
             try await user.delete()
         } catch {
             // Auth deletion can require a recent login; data is already gone by then.

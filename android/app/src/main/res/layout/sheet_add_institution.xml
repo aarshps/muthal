@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
@@ -33,10 +34,16 @@
         android:textColor="?android:attr/textColorSecondary"
         android:textSize="12sp" />
 
-    <Spinner
-        android:id="@+id/spinnerType"
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnPickType"
+        style="?attr/materialButtonOutlinedStyle"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="start|center_vertical"
+        android:text="Temple"
+        app:icon="@drawable/ic_chevron_right"
+        app:iconGravity="end" />
 
     <TextView
         android:layout_width="wrap_content"
@@ -46,10 +53,16 @@
         android:textColor="?android:attr/textColorSecondary"
         android:textSize="12sp" />
 
-    <Spinner
-        android:id="@+id/spinnerCurrency"
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnPickCurrency"
+        style="?attr/materialButtonOutlinedStyle"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="start|center_vertical"
+        android:text="INR  ₹"
+        app:icon="@drawable/ic_chevron_right"
+        app:iconGravity="end" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnCreateInstitution"
