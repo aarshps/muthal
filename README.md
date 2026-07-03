@@ -6,8 +6,10 @@ the **Hora** app family. Android, iOS, and Web are developed together in this si
 repository and all talk to **one** Firebase project, so you sign in on any platform and
 see the same institutions and entries in real time.
 
-One signed-in user can keep **several institutions**, each with its own ledger of
-income/expense entries, a running balance, and a this-month summary.
+An institution can be shared by **multiple signed-in users**, each with a role — owner,
+admin, or member — that controls what they can see and do (SPEC §3). Every institution
+has its own ledger of income/expense entries, categories, a running balance, and a
+this-month summary.
 
 ## Repository layout
 
@@ -31,15 +33,19 @@ All clients use Firebase Auth (Google) and Cloud Firestore. The document layout 
 identical across platforms:
 
 ```
-users/{uid}/institutions/{instId}                       institution doc
-users/{uid}/institutions/{instId}/entries/{entryId}     entry (authoritative)
-users/{uid}/entries/{entryId}                           flat mirror (fast "All entries" reads)
+institutions/{instId}                                   institution doc (top-level, shared)
+institutions/{instId}/members/{uid}                      membership + role (owner/admin/member)
+institutions/{instId}/categories/{categoryId}            per-institution income/expense category
+institutions/{instId}/entries/{entryId}                  entry (authoritative)
+institutionCodes/{code}                                  join-code → institution id (public lookup)
+users/{uid}/memberships/{instId}                         per-user index: my institutions + role
 ```
 
-Entries are **dual-written** (nested authoritative + flat mirror, same id) so the
-all-institutions "All entries" view reads the mirror via a collection-group query. The
-authoritative description of this behaviour — and the golden test vectors every platform
-must satisfy — live in [`shared/domain/`](shared/domain/SPEC.md).
+Institutions are shared by multiple users, each with a role (SPEC §3): members view-only,
+admins/owners add entries and configure categories, owners also manage members. Joining
+is by a 6-character code or a universal `/join/{code}` link. The authoritative description
+of this behaviour — and the golden test vectors every platform must satisfy — live in
+[`shared/domain/`](shared/domain/SPEC.md).
 
 Security is enforced by Firestore rules keyed on `request.auth.uid`
 ([`shared/firebase/firestore.rules`](shared/firebase/firestore.rules)), not by hiding

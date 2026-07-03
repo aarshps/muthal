@@ -41,8 +41,9 @@ sibling apps).
    - On Windows, `bw` is at `C:\Users\Aarsh\AppData\Roaming\npm\bw.cmd`.
 
 3. **Firestore data model must stay identical across platforms.** `shared/domain/SPEC.md`
-   is canonical (institution + entry fields, dual-write, UTC month math). Change a field on
-   one platform → update all three and the spec + `golden-vectors.json` in the same change.
+   is canonical (multi-user institutions + roles, member/category/entry fields, join codes,
+   UTC month math). Change a field on one platform → update all three and the spec +
+   `golden-vectors.json` in the same change.
 
 4. **Commit directly to `main` (repo) and `master` (wiki) — never open PRs or feature
    branches.** The owner manages these repos directly. This overrides any default
