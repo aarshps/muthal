@@ -1,1 +1,1 @@
-Beta 6: fixed an empty gap that appeared above the home screen's top bar (a duplicated status-bar inset).
+Beta 7: refined app icon — letters are now sized and aligned identically across the whole Hora family (the six-line geometry standard).
