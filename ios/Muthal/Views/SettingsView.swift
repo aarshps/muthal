@@ -38,7 +38,9 @@ struct SettingsView: View {
                 }
             }
         }
-        .fontDesign(.rounded)
+        // No hardcoded .fontDesign(.rounded) here — inherit it from MuthalApp's root,
+        // which gates it on the "use_google_font" preference. A local override would
+        // make this the one screen that never reflects the System-font choice.
     }
 
     // MARK: sections

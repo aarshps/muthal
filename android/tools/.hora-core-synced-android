@@ -2,8 +2,8 @@
 # Edit them in hora-core/shared/android/ and re-run this script.
 # source: C:/Users/Aarsh/Source/hora-core/hora-core/shared/android
 # app package: com.hora.muthal
-# synced: 2026-07-02T11:07:10Z
-# hora-core commit: 5e885e3
+# synced: 2026-07-04T00:27:15Z
+# hora-core commit: f8db5dc
 #
 res/values/dimens.xml
 res/values/type.xml
