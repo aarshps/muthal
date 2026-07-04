@@ -1,0 +1,1 @@
+First closed testing (Alpha) release of Muthal - a minimal income & expense ledger for institutions (temples, churches, libraries). Sign in with Google, track multiple institutions, and see a running balance with a monthly summary.

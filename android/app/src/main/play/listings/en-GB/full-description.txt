@@ -1,0 +1,9 @@
+Income & expense ledger for institutions
+
+Muthal is a minimal ledger for tracking income and expenses across institutions such as temples, churches, libraries, and small non-profits. Create a ledger for each institution you manage, record entries, and see running balances update in real time.
+
+Institutions can be shared with other people. An owner invites members by sharing a 6-character join code or a link, and assigns each person a role: owners manage the institution and its members, admins record and categorise entries, and members can view the ledger without making changes.
+
+Categories are configurable per institution, so each entry can be filed under income or expense categories that make sense for that organisation. A period export shows the opening balance, closing balance, and every entry between any two dates you choose.
+
+Muthal is available on Android and the web, using the same account on both. Feedback is welcome -- join the tester group at groups.google.com/g/muthal-testers.
