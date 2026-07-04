@@ -12,6 +12,7 @@ const rounded = Nunito({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://muthal-web.vercel.app"),
   title: "Muthal",
   description: "Income & expense tracking for institutions.",
   manifest: "/manifest.json",
