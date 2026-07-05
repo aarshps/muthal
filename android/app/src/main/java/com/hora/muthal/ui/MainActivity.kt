@@ -339,6 +339,15 @@ class MainActivity : BaseActivity() {
         )
     }
 
+    private fun showLoading(message: String) {
+        b.loadingOverlay.visibility = View.VISIBLE
+        b.textLoadingMessage.text = message
+    }
+
+    private fun hideLoading() {
+        b.loadingOverlay.visibility = View.GONE
+    }
+
     private fun confirmLeaveInstitution() {
         val m = selectedMembership ?: return
         val uid = auth.currentUser?.uid ?: return
@@ -349,9 +358,11 @@ class MainActivity : BaseActivity() {
             positiveButtonText = getString(R.string.leave_institution),
             isDestructive = true,
             onConfirm = {
+                showLoading("Leaving institution...")
                 lifecycleScope.launch {
                     try { repo?.removeMember(m.institutionId, uid) }
                     catch (e: Exception) { toast("Couldn't leave: ${e.message}") }
+                    finally { hideLoading() }
                 }
             },
         ).show(supportFragmentManager, "leave")
@@ -367,9 +378,11 @@ class MainActivity : BaseActivity() {
             positiveButtonText = getString(R.string.delete_institution),
             isDestructive = true,
             onConfirm = {
+                showLoading("Deleting institution...")
                 lifecycleScope.launch {
                     try { repo?.deleteInstitution(m.institutionId) }
                     catch (e: Exception) { toast("Couldn't delete: ${e.message}") }
+                    finally { hideLoading() }
                 }
             },
         ).show(supportFragmentManager, "delete-institution")
@@ -384,25 +397,32 @@ class MainActivity : BaseActivity() {
 
     private fun resolveAndConfirmJoin(code: String) {
         val r = repo ?: run { pendingJoinCode = code; return }
+        showLoading("Resolving join code...")
         lifecycleScope.launch {
             try {
                 val preview = r.resolveCode(code)
+                hideLoading()
                 if (preview == null) { toast("Invalid or expired code"); return@launch }
                 ConfirmationBottomSheet(
                     title = getString(R.string.join_institution),
                     message = "Join \"${preview.institutionName}\"?",
                     positiveButtonText = getString(R.string.join),
                     onConfirm = {
+                        showLoading("Joining ${preview.institutionName}...")
                         lifecycleScope.launch {
                             try {
                                 val inst = r.joinInstitution(preview)
                                 selectInstitution(Membership(inst.id, Role.MEMBER, inst.name, inst.type, inst.currency))
                                 toast("Joined ${inst.name}")
                             } catch (e: Exception) { toast("Couldn't join: ${e.message}") }
+                            finally { hideLoading() }
                         }
                     },
                 ).show(supportFragmentManager, "join-confirm")
-            } catch (e: Exception) { toast("Couldn't resolve code: ${e.message}") }
+            } catch (e: Exception) {
+                hideLoading()
+                toast("Couldn't resolve code: ${e.message}")
+            }
         }
     }
 
@@ -466,13 +486,15 @@ class MainActivity : BaseActivity() {
             if (name.isEmpty()) { sb.inputName.error = "Required"; return@setOnClickListener }
             val r = repo ?: return@setOnClickListener
             val finalType = type; val finalCurrency = currency.code
+            dialog.dismiss()
+            showLoading("Creating institution...")
             lifecycleScope.launch {
                 try {
                     val inst = r.createInstitution(name, finalType, finalCurrency)
                     selectInstitution(Membership(inst.id, Role.OWNER, inst.name, inst.type, inst.currency))
                 } catch (e: Exception) { toast("Couldn't create institution: ${e.message}") }
+                finally { hideLoading() }
             }
-            dialog.dismiss()
         }
         dialog.show()
     }

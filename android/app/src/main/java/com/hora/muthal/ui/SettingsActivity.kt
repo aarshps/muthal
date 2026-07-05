@@ -3,6 +3,7 @@ package com.hora.muthal.ui
 import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.view.HapticFeedbackConstants
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.lifecycle.lifecycleScope
@@ -17,6 +18,9 @@ import com.hora.muthal.databinding.ActivitySettingsBinding
 import com.hora.muthal.util.BiometricAuthManager
 import com.hora.muthal.util.ChipHelper
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -156,6 +160,15 @@ class SettingsActivity : BaseActivity() {
         }
     }
 
+    private fun showLoading(message: String) {
+        b.loadingOverlay.visibility = View.VISIBLE
+        b.textLoadingMessage.text = message
+    }
+
+    private fun hideLoading() {
+        b.loadingOverlay.visibility = View.GONE
+    }
+
     /** PRIVACY.md promise: Settings → Delete account removes all user data + the auth
      * record. Institutions are now shared (SPEC §1) — this only removes the user's OWN
      * presence (their member doc in each institution + their memberships index), never
@@ -165,20 +178,32 @@ class SettingsActivity : BaseActivity() {
         val user = auth.currentUser ?: return
         val uid = user.uid
         val db = FirebaseFirestore.getInstance()
+        showLoading("Deleting your account data...")
         lifecycleScope.launch {
             try {
                 val userRef = db.collection("users").document(uid)
                 val memberships = userRef.collection("memberships").get().await()
-                for (m in memberships.documents) {
-                    db.collection("institutions").document(m.id)
-                        .collection("members").document(uid).delete().await()
-                    m.reference.delete().await()
+                coroutineScope {
+                    val jobs = memberships.documents.map { m ->
+                        async {
+                            try {
+                                db.collection("institutions").document(m.id)
+                                    .collection("members").document(uid).delete().await()
+                            } catch (e: Exception) {
+                                // Ignore if document doesn't exist
+                            }
+                            m.reference.delete().await()
+                        }
+                    }
+                    jobs.awaitAll()
                 }
                 userRef.delete().await()
                 user.delete().await()
+                hideLoading()
                 Toast.makeText(this@SettingsActivity, "Account deleted", Toast.LENGTH_LONG).show()
                 finish()
             } catch (e: Exception) {
+                hideLoading()
                 // Auth deletion can require a recent login; data is already gone by then.
                 auth.signOut()
                 Toast.makeText(
