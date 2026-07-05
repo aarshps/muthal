@@ -61,6 +61,14 @@ export function App({ initialJoinCode }: { initialJoinCode?: string }) {
   const [pendingJoinCode, setPendingJoinCode] = useState<string | undefined>(initialJoinCode);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => {
+      setToast((prev) => (prev === msg ? null : prev));
+    }, 4000);
+  };
 
   useEffect(() => {
     if (pendingJoinCode && auth.user) {
@@ -231,11 +239,15 @@ export function App({ initialJoinCode }: { initialJoinCode?: string }) {
           categories={detail.categories}
           entry={entryDialogOpen === "new" ? null : entryDialogOpen}
           onSave={async (draft: EntryDraft) => {
-            await saveEntry(uid!, detail.institution!.id, draft);
+            saveEntry(uid!, detail.institution!.id, draft).catch((e) =>
+              showToast(`Failed to save entry: ${(e as Error).message}`),
+            );
             analytics.entrySave(!draft.id, draft.type);
           }}
           onDelete={async (e) => {
-            await deleteEntry(detail.institution!.id, e.id);
+            deleteEntry(detail.institution!.id, e.id).catch((e) =>
+              showToast(`Failed to delete entry: ${(e as Error).message}`),
+            );
             analytics.entryDelete();
           }}
         />
@@ -341,6 +353,18 @@ export function App({ initialJoinCode }: { initialJoinCode?: string }) {
           }
         }}
       />
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-surface-container-highest text-on-surface px-6 py-3 rounded-full shadow-lg border border-outline-variant flex items-center gap-3 animate-fade-in z-50">
+          <span className="text-sm font-medium">{toast}</span>
+          <button
+            onClick={() => setToast(null)}
+            className="text-xs text-primary font-bold hover:underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -563,11 +563,17 @@ class MainActivity : BaseActivity() {
             if (amount <= 0.0) { sb.inputAmount.error = "Enter an amount"; return@setOnClickListener }
             if (currentCategory.isEmpty()) { toast("Pick a category"); return@setOnClickListener }
             val note = sb.inputNote.text?.toString()?.trim().orEmpty()
-            repo?.saveEntry(m.institutionId, entry?.id, currentDateMillis, amount, currentType, currentCategory, note)
+            repo?.saveEntry(m.institutionId, entry?.id, currentDateMillis, amount, currentType, currentCategory, note,
+                onFailure = { e -> toast("Failed to save entry: ${e.message}") }
+            )
             dialog.dismiss()
         }
         sb.btnDelete.setOnClickListener {
-            entry?.let { repo?.deleteEntry(m.institutionId, it.id) }
+            entry?.let {
+                repo?.deleteEntry(m.institutionId, it.id,
+                    onFailure = { e -> toast("Failed to delete entry: ${e.message}") }
+                )
+            }
             dialog.dismiss()
         }
         dialog.show()

@@ -82,14 +82,14 @@ export function AddEntryDialog({
     setBusy(true);
     setError(null);
     try {
-      await onSave({
+      onSave({
         id: entry?.id,
         date: Date.parse(`${dateStr}T00:00:00.000Z`),
         amount: value,
         type,
         category,
         note: note.trim(),
-      });
+      }).catch(() => {});
       haptics.success();
       onClose();
     } catch (e) {
@@ -104,7 +104,7 @@ export function AddEntryDialog({
     if (!entry) return;
     setBusy(true);
     try {
-      await onDelete(entry);
+      onDelete(entry).catch(() => {});
       haptics.success();
       onClose();
     } catch (e) {

@@ -250,14 +250,14 @@ class FirestoreRepo(private val uid: String) {
             }.sortedWith(compareBy({ it.kind }, { it.name.lowercase() })))
         }
 
-    fun addCategory(instId: String, name: String, kind: String) {
+    fun addCategory(instId: String, name: String, kind: String, onFailure: (Exception) -> Unit = {}) {
         categories(instId).document().set(
             hashMapOf("name" to name, "kind" to kind, "createdAt" to FieldValue.serverTimestamp())
-        )
+        ).addOnFailureListener { onFailure(it) }
     }
 
-    fun deleteCategory(instId: String, categoryId: String) {
-        categories(instId).document(categoryId).delete()
+    fun deleteCategory(instId: String, categoryId: String, onFailure: (Exception) -> Unit = {}) {
+        categories(instId).document(categoryId).delete().addOnFailureListener { onFailure(it) }
     }
 
     // ── Entries (admin/owner write, all members read; SPEC §2) ──
@@ -292,6 +292,7 @@ class FirestoreRepo(private val uid: String) {
         type: String,
         category: String,
         note: String,
+        onFailure: (Exception) -> Unit = {}
     ) {
         val id = existingId ?: entries(instId).document().id
         val payload = hashMapOf<String, Any>(
@@ -303,10 +304,10 @@ class FirestoreRepo(private val uid: String) {
             "createdBy" to uid,
             "createdAt" to FieldValue.serverTimestamp(),
         )
-        entries(instId).document(id).set(payload)
+        entries(instId).document(id).set(payload).addOnFailureListener { onFailure(it) }
     }
 
-    fun deleteEntry(instId: String, id: String) {
-        entries(instId).document(id).delete()
+    fun deleteEntry(instId: String, id: String, onFailure: (Exception) -> Unit = {}) {
+        entries(instId).document(id).delete().addOnFailureListener { onFailure(it) }
     }
 }

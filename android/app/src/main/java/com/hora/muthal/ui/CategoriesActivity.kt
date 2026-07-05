@@ -1,6 +1,7 @@
 package com.hora.muthal.ui
 
 import android.os.Bundle
+import android.widget.Toast
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.ListenerRegistration
@@ -67,7 +68,9 @@ class CategoriesActivity : BaseActivity() {
             val name = sb.inputCategoryName.text?.toString()?.trim().orEmpty()
             if (name.isEmpty()) { sb.inputCategoryName.error = "Required"; return@setOnClickListener }
             val kind = if (sb.toggleKind.checkedButtonId == sb.btnKindIncome.id) "income" else "expense"
-            repo.addCategory(instId, name, kind)
+            repo.addCategory(instId, name, kind, onFailure = { e ->
+                Toast.makeText(this, "Failed to add category: ${e.message}", Toast.LENGTH_LONG).show()
+            })
             dialog.dismiss()
         }
         dialog.show()
@@ -79,7 +82,11 @@ class CategoriesActivity : BaseActivity() {
             message = "Delete category \"${category.name}\"? Existing entries keep it as text but it will no longer be selectable.",
             positiveButtonText = getString(R.string.delete),
             isDestructive = true,
-            onConfirm = { repo.deleteCategory(instId, category.id) },
+            onConfirm = {
+                repo.deleteCategory(instId, category.id, onFailure = { e ->
+                    Toast.makeText(this, "Failed to delete category: ${e.message}", Toast.LENGTH_LONG).show()
+                })
+            },
         ).show(supportFragmentManager, "delete-category")
     }
 
