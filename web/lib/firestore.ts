@@ -13,6 +13,7 @@ import {
   setDoc,
   Timestamp,
   updateDoc,
+  writeBatch,
   type DocumentData,
   type Unsubscribe,
 } from "firebase/firestore";
@@ -119,13 +120,15 @@ export async function createInstitution(
 
   await setDoc(doc(codes(), code), { institutionId: ref.id, name: input.name });
 
+  const batch = writeBatch(db);
   const seed: [string, EntryType][] = [
     ...INCOME_CATEGORIES.map((c): [string, EntryType] => [c, "income"]),
     ...EXPENSE_CATEGORIES.map((c): [string, EntryType] => [c, "expense"]),
   ];
   for (const [name, kind] of seed) {
-    await setDoc(doc(categories(ref.id)), { name, kind, createdAt: serverTimestamp() });
+    batch.set(doc(categories(ref.id)), { name, kind, createdAt: serverTimestamp() });
   }
+  await batch.commit();
 
   return { id: ref.id, name: input.name, type: input.type, currency: input.currency, code, ownerId: uid, createdAt: Date.now() };
 }
@@ -186,20 +189,23 @@ export async function deleteInstitution(uid: string, instId: string): Promise<vo
   const instSnap = await getDoc(institution(instId));
   const code = instSnap.data()?.code as string | undefined;
 
-  if (code) await deleteDoc(doc(codes(), code));
-
   const entrySnap = await getDocs(entries(instId));
-  for (const d of entrySnap.docs) await deleteDoc(d.ref);
+  const entryDeletes = entrySnap.docs.map(d => deleteDoc(d.ref));
 
   const categorySnap = await getDocs(categories(instId));
-  for (const d of categorySnap.docs) await deleteDoc(d.ref);
+  const categoryDeletes = categorySnap.docs.map(d => deleteDoc(d.ref));
 
   const memberSnap = await getDocs(members(instId));
+  const memberDeletes: Promise<void>[] = [];
   for (const m of memberSnap.docs) {
     if (m.id === uid) continue;
-    await deleteDoc(doc(collection(db, "users", m.id, "memberships"), instId)).catch(() => {});
-    await deleteDoc(m.ref);
+    memberDeletes.push(deleteDoc(doc(collection(db, "users", m.id, "memberships"), instId)).catch(() => {}));
+    memberDeletes.push(deleteDoc(m.ref));
   }
+
+  const codeDelete = code ? [deleteDoc(doc(codes(), code))] : [];
+
+  await Promise.all([...codeDelete, ...entryDeletes, ...categoryDeletes, ...memberDeletes]);
 
   await deleteDoc(doc(myMemberships(uid), instId));
   await deleteDoc(institution(instId));

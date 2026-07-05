@@ -159,12 +159,15 @@ final class FirestoreService: ObservableObject {
 
         try await codesCol().document(code).setData(["institutionId": ref.documentID, "name": name])
 
+        let batch = db.batch()
         let seed: [(String, String)] = Categories.income.map { ($0, "income") } + Categories.expense.map { ($0, "expense") }
         for (catName, kind) in seed {
-            try await categoriesCol(ref.documentID).document().setData([
-                "name": catName, "kind": kind, "createdAt": FieldValue.serverTimestamp(),
-            ])
+            let docRef = categoriesCol(ref.documentID).document()
+            batch.setData([
+                "name": catName, "kind": kind, "createdAt": FieldValue.serverTimestamp()
+            ], forDocument: docRef)
         }
+        try await batch.commit()
 
         return Institution(id: ref.documentID, name: name, type: type, currency: currency, code: code, ownerId: uid, createdAt: Date())
     }
@@ -218,18 +221,38 @@ final class FirestoreService: ObservableObject {
         let instDoc = try await institutionsCol().document(instId).getDocument()
         let code = instDoc["code"] as? String
 
-        if let code, !code.isEmpty {
-            try await codesCol().document(code).delete()
-        }
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            if let code, !code.isEmpty {
+                group.addTask {
+                    try await self.codesCol().document(code).delete()
+                }
+            }
 
-        for d in try await entriesCol(instId).getDocuments().documents { try await d.reference.delete() }
-        for d in try await categoriesCol(instId).getDocuments().documents { try await d.reference.delete() }
+            let entries = try await entriesCol(instId).getDocuments().documents
+            for d in entries {
+                group.addTask {
+                    try await d.reference.delete()
+                }
+            }
 
-        for m in try await membersCol(instId).getDocuments().documents {
-            if m.documentID == uid { continue }
-            try? await db.collection("users").document(m.documentID).collection("memberships")
-                .document(instId).delete()
-            try await m.reference.delete()
+            let categories = try await categoriesCol(instId).getDocuments().documents
+            for d in categories {
+                group.addTask {
+                    try await d.reference.delete()
+                }
+            }
+
+            let members = try await membersCol(instId).getDocuments().documents
+            for m in members {
+                if m.documentID == uid { continue }
+                group.addTask {
+                    try? await self.db.collection("users").document(m.documentID).collection("memberships")
+                        .document(instId).delete()
+                    try await m.reference.delete()
+                }
+            }
+
+            try await group.waitForAll()
         }
 
         try await myMembershipsCol(uid).document(instId).delete()

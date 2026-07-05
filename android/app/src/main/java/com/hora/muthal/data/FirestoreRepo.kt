@@ -14,6 +14,10 @@ import com.hora.muthal.model.Member
 import com.hora.muthal.model.Membership
 import com.hora.muthal.model.Role
 import com.hora.muthal.util.Categories
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.tasks.await
 import java.util.Date
 
@@ -87,13 +91,14 @@ class FirestoreRepo(private val uid: String) {
 
         codes().document(code).set(hashMapOf("institutionId" to ref.id, "name" to name)).await()
 
-        // Seed starter categories (still editable/removable afterward — SPEC §5).
+        // Seed starter categories in a single write batch (SPEC §5).
+        val batch = db.batch()
         val seed = Categories.INCOME.map { it to "income" } + Categories.EXPENSE.map { it to "expense" }
         for ((catName, kind) in seed) {
-            categories(ref.id).document().set(
-                hashMapOf("name" to catName, "kind" to kind, "createdAt" to FieldValue.serverTimestamp())
-            ).await()
+            val docRef = categories(ref.id).document()
+            batch.set(docRef, hashMapOf("name" to catName, "kind" to kind, "createdAt" to FieldValue.serverTimestamp()))
         }
+        batch.commit().await()
 
         return Institution(id = ref.id, name = name, type = type, currency = currency, code = code, ownerId = uid)
     }
@@ -153,21 +158,37 @@ class FirestoreRepo(private val uid: String) {
     /** Owner only (SPEC §3). Permanently removes the institution and everything in it.
      * A sequence of separately-awaited deletes, ordered so every step's rule check
      * still has what it needs — see SPEC §2 for the exact reasoning per step. */
-    suspend fun deleteInstitution(instId: String) {
+    suspend fun deleteInstitution(instId: String) = coroutineScope {
         val inst = institution(instId).get().await()
         val code = inst.getString("code")
 
-        if (!code.isNullOrEmpty()) codes().document(code).delete().await()
+        val jobs = mutableListOf<Deferred<*>>()
 
-        for (d in entries(instId).get().await().documents) d.reference.delete().await()
-        for (d in categories(instId).get().await().documents) d.reference.delete().await()
+        if (!code.isNullOrEmpty()) {
+            jobs.add(async { codes().document(code).delete().await() })
+        }
+
+        for (d in entries(instId).get().await().documents) {
+            jobs.add(async { d.reference.delete().await() })
+        }
+        for (d in categories(instId).get().await().documents) {
+            jobs.add(async { d.reference.delete().await() })
+        }
 
         for (m in members(instId).get().await().documents) {
             if (m.id == uid) continue
-            db.collection("users").document(m.id).collection("memberships").document(instId)
-                .delete().await()
-            m.reference.delete().await()
+            jobs.add(async {
+                try {
+                    db.collection("users").document(m.id).collection("memberships").document(instId)
+                        .delete().await()
+                } catch (e: Exception) {
+                    // Ignore index deletion failures if the user doesn't exist
+                }
+            })
+            jobs.add(async { m.reference.delete().await() })
         }
+
+        jobs.awaitAll()
 
         myMemberships().document(instId).delete().await()
         institution(instId).delete().await()

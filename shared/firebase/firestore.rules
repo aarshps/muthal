@@ -51,7 +51,7 @@ service cloud.firestore {
       allow delete: if signedIn() && isOwner(instId);
 
       match /members/{memberUid} {
-        allow read: if signedIn() && isMember(instId);
+        allow read: if signedIn() && (isMember(instId) || memberUid == request.auth.uid);
         // Self-service join, default role: a user may only create THEIR OWN member
         // doc, and only with role 'member'. Anything higher must come from an owner
         // (the update rule below) — EXCEPT the one-time owner bootstrap immediately
