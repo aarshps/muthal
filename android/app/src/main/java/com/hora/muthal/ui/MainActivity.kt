@@ -102,6 +102,7 @@ class MainActivity : BaseActivity() {
         }
         b.rvEntries.layoutManager = LinearLayoutManager(this)
         b.rvEntries.adapter = adapter
+        PreferenceHelper.attachNestedScrollHaptics(b.nestedScroll)
 
         b.btnGoogle.setOnClickListener { signIn() }
         b.btnEmptyCreateInstitution.setOnClickListener { openInstitutionSheet() }

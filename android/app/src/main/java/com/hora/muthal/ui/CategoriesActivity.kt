@@ -12,6 +12,7 @@ import com.hora.muthal.data.FirestoreRepo
 import com.hora.muthal.databinding.ActivityCategoriesBinding
 import com.hora.muthal.databinding.SheetAddCategoryBinding
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.hora.muthal.PreferenceHelper
 import com.hora.muthal.model.Category
 
 /** Admin/owner-only category CRUD, scoped to one institution (SPEC §5). */
@@ -52,6 +53,7 @@ class CategoriesActivity : BaseActivity() {
             incomeAdapter.submit(cats.filter { it.kind == "income" })
             expenseAdapter.submit(cats.filter { it.kind == "expense" })
         }
+        PreferenceHelper.attachNestedScrollHaptics(b.categoriesScroll)
     }
 
     override fun onSupportNavigateUp(): Boolean {
