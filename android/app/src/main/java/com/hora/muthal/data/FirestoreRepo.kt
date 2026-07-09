@@ -292,6 +292,7 @@ class FirestoreRepo(private val uid: String) {
         type: String,
         category: String,
         note: String,
+        onSuccess: () -> Unit = {},
         onFailure: (Exception) -> Unit = {}
     ) {
         val id = existingId ?: entries(instId).document().id
@@ -304,7 +305,9 @@ class FirestoreRepo(private val uid: String) {
             "createdBy" to uid,
             "createdAt" to FieldValue.serverTimestamp(),
         )
-        entries(instId).document(id).set(payload).addOnFailureListener { onFailure(it) }
+        entries(instId).document(id).set(payload)
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onFailure(it) }
     }
 
     fun deleteEntry(instId: String, id: String, onFailure: (Exception) -> Unit = {}) {

@@ -20,6 +20,9 @@ class MuthalApplication : Application() {
         // Family standard — see hora-core docs/conventions.md.
         DynamicColors.applyToActivitiesIfAvailable(this)
 
+        // Create the notification channel for transaction alerts per Hora standard
+        NotificationHelper.createNotificationChannel(this)
+
         // Resource-shrinker keep-alive for Theme.Muthal.SystemFont (Settings → Appearance
         // → Google Sans font toggle). It's only ever looked up dynamically
         // (BaseActivity builds the name from a runtime string via

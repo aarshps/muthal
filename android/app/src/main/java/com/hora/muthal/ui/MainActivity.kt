@@ -26,6 +26,7 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.ListenerRegistration
 import com.hora.muthal.BaseActivity
 import com.hora.muthal.ConfirmationBottomSheet
+import com.hora.muthal.NotificationHelper
 import com.hora.muthal.PreferenceHelper
 import com.hora.muthal.R
 import com.hora.muthal.SelectionBottomSheet
@@ -565,6 +566,10 @@ class MainActivity : BaseActivity() {
             if (currentCategory.isEmpty()) { toast("Pick a category"); return@setOnClickListener }
             val note = sb.inputNote.text?.toString()?.trim().orEmpty()
             repo?.saveEntry(m.institutionId, entry?.id, currentDateMillis, amount, currentType, currentCategory, note,
+                onSuccess = {
+                    // Notify the user about the transaction via a Material 3 bleeding notification
+                    NotificationHelper.notifyTransactionPosted(this, amount, currentCategory, currentType)
+                },
                 onFailure = { e -> toast("Failed to save entry: ${e.message}") }
             )
             dialog.dismiss()
