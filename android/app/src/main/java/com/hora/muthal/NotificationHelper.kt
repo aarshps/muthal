@@ -43,7 +43,7 @@ object NotificationHelper {
      * Send a transaction alert notification when an entry is saved.
      * Follows Hora notifications design standard:
      * - Full-bleed background colour (setColorized + setColor)
-     * - Monochrome Malayalam icon (ic_notification_hora.xml, system-tinted)
+     * - Monochrome Malayalam icon (ic_notification.xml, engine-generated, system-tinted)
      * - Clear text hierarchy (title bold, content secondary, subtext metadata)
      * - Vibration gated on haptics preference
      *
@@ -88,7 +88,7 @@ object NotificationHelper {
         // Get the dynamic Material You primary color via MaterialColors utility
         val primaryColor = MaterialColors.getColor(context, android.R.attr.colorPrimary, 0xFF1C1B1F.toInt())
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification_hora)  // 24×24dp monochrome, system-tinted
+            .setSmallIcon(R.drawable.ic_notification)  // engine-generated 24×24dp monochrome, system-tinted
             .setContentTitle(title)                          // Bold primary text
             .setContentText(body)                            // Secondary text
             .setSubText("Muthal • $formattedTime")          // Metadata: app name + time
