@@ -131,8 +131,17 @@ final signing key).
 - [x] Upload keystore generated (`keytool`) and the `Muthal` Bitwarden item created with all
       Android fields + `GoogleService-Info.plist [base64]` + the web `.env.local` (as a field).
 - [ ] Create `Muthal iOS signing` Bitwarden item + the iOS GitHub Secrets **after Apple enrolment**.
-- [ ] Add the Play Console **publisher service-account key** to the `Muthal` item as
-      `play_console_key.json` (base64) once created (then `retrieve_secrets.sh` restores it).
+- [ ] **UNCONFIRMED, HIGH PRIORITY (2026-07-11):** `android/app/play_console_key.json` exists
+      locally (created 2026-07-02) but this checkbox was never checked off, and an agent could not
+      confirm via `bw` CLI whether it's actually saved to the `Muthal` Bitwarden item (vault
+      unlock hit CLI/interactive-prompt issues — see `.env` gap below). **Verify manually in the
+      Bitwarden web vault before wiping this machine** — if it's not there, the Play publisher
+      key is gone for good and a new one must be issued via Play Console → API access.
+- [ ] **CONFIRMED GAP (2026-07-11):** `.env` at repo root has only `BW_PASSWORD` set —
+      `BW_CLIENTID`/`BW_CLIENTSECRET` are missing, so `source scripts/bw_unlock.sh` fails its
+      fail-fast check and the documented automated recovery flow does not run as scripted.
+      Fill in both values (vault.bitwarden.com → Settings → Security → API key) before relying
+      on this runbook from a fresh machine.
 - [ ] Independent offline backup of the Android upload keystore (encrypted USB).
 - [ ] Bitwarden Emergency Access designee + 2FA recovery codes stored offline.
 - [ ] Enable Firestore scheduled exports to Cloud Storage (guards against accidental project deletion).
