@@ -39,7 +39,8 @@ class EntryAdapter(private val onClick: (Entry) -> Unit) :
     override fun onBindViewHolder(h: VH, position: Int) {
         val e = items[position]
         h.b.tvCategory.text = e.category.ifEmpty { "Uncategorized" }
-        h.b.tvSub.text = if (e.note.isNotEmpty()) e.note else dateFmt.format(Date(e.date))
+        val dateText = dateFmt.format(Date(e.date))
+        h.b.tvSub.text = if (e.note.isNotEmpty()) "$dateText • ${e.note}" else dateText
         val sign = if (e.type == "income") "+" else "−"
         h.b.tvAmount.text = sign + CurrencyHelper.format(e.amount, currency)
         val colorRes = if (e.type == "income") R.color.income else R.color.expense
